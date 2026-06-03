@@ -51,7 +51,7 @@ export default async function HomePage() {
   const totalCalories = mealList.reduce((sum, m) => sum + (m.calories ?? 0), 0)
 
   return (
-    <main className="relative flex min-h-screen flex-col bg-zinc-50 pb-28">
+    <main className="flex min-h-screen flex-col bg-zinc-50">
       {/* Header */}
       <header className="flex items-start justify-between px-5 pt-12 pb-2">
         <div>
@@ -102,13 +102,6 @@ export default async function HomePage() {
         )}
       </section>
 
-      {/* Floating add button */}
-      <button
-        aria-label="Log a meal"
-        className="fixed bottom-8 right-5 flex h-14 w-14 items-center justify-center rounded-full bg-zinc-900 text-2xl font-light text-white shadow-lg transition-transform active:scale-95 hover:bg-zinc-700"
-      >
-        +
-      </button>
     </main>
   )
 }
