@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { analyzeFood, type FoodAnalysis } from '@/lib/actions/analyze'
 
 type Screen = 'camera' | 'preview'
+type AnalyzeState = 'idle' | 'loading' | 'done' | 'error'
 
 export default function CameraView() {
   const router = useRouter()
@@ -15,6 +17,10 @@ export default function CameraView() {
   const [capturedImage, setCapturedImage] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const [analyzeState, setAnalyzeState] = useState<AnalyzeState>('idle')
+  const [analysisResult, setAnalysisResult] = useState<FoodAnalysis | null>(null)
+  const [analysisError, setAnalysisError] = useState<string | null>(null)
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop())
@@ -79,7 +85,24 @@ export default function CameraView() {
   function handleRetake() {
     setCapturedImage(null)
     setScreen('camera')
+    setAnalyzeState('idle')
+    setAnalysisResult(null)
+    setAnalysisError(null)
     startCamera()
+  }
+
+  async function handleAnalyze() {
+    if (!capturedImage) return
+    setAnalyzeState('loading')
+    setAnalysisError(null)
+    const res = await analyzeFood(capturedImage)
+    if ('error' in res) {
+      setAnalysisError(res.error)
+      setAnalyzeState('error')
+    } else {
+      setAnalysisResult(res.data)
+      setAnalyzeState('done')
+    }
   }
 
   function handleBack() {
@@ -143,31 +166,56 @@ export default function CameraView() {
       <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
 
       {/* Bottom controls */}
-      <div className="flex items-center justify-center px-8 pb-16 pt-8">
+      <div className="flex flex-col gap-3 px-8 pb-16 pt-6">
         {screen === 'camera' ? (
-          <button
-            onClick={handleCapture}
-            disabled={!!error}
-            aria-label="Take photo"
-            className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white disabled:opacity-30"
-          >
-            <div className="h-14 w-14 rounded-full bg-white" />
-          </button>
-        ) : (
-          <div className="flex w-full gap-3">
+          <div className="flex justify-center">
             <button
-              onClick={handleRetake}
-              className="flex-1 rounded-2xl border border-white/30 py-4 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+              onClick={handleCapture}
+              disabled={!!error}
+              aria-label="Take photo"
+              className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white disabled:opacity-30"
             >
-              Retake
-            </button>
-            <button
-              onClick={() => {}}
-              className="flex-1 rounded-2xl bg-white py-4 text-sm font-semibold text-zinc-900 transition-colors hover:bg-zinc-100"
-            >
-              Analyze
+              <div className="h-14 w-14 rounded-full bg-white" />
             </button>
           </div>
+        ) : (
+          <>
+            {/* Result / error panel */}
+            {analyzeState === 'done' && analysisResult && (
+              <pre className="max-h-44 overflow-auto rounded-xl bg-white/10 p-4 text-xs leading-relaxed text-white backdrop-blur-sm">
+                {JSON.stringify(analysisResult, null, 2)}
+              </pre>
+            )}
+            {analyzeState === 'error' && analysisError && (
+              <p className="rounded-xl bg-red-500/20 px-4 py-3 text-xs text-red-300">
+                {analysisError}
+              </p>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={handleRetake}
+                className="flex-1 rounded-2xl border border-white/30 py-4 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+              >
+                Retake
+              </button>
+              <button
+                onClick={handleAnalyze}
+                disabled={analyzeState === 'loading'}
+                className="flex-1 rounded-2xl bg-white py-4 text-sm font-semibold text-zinc-900 transition-colors hover:bg-zinc-100 disabled:opacity-60"
+              >
+                {analyzeState === 'loading' ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" strokeLinecap="round"/>
+                    </svg>
+                    Analyzing…
+                  </span>
+                ) : analyzeState === 'done' ? 'Re-analyze' : 'Analyze'}
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>
