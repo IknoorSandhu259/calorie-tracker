@@ -23,16 +23,17 @@ export default function BottomNav() {
           <span className="text-[10px] font-medium">Progress</span>
         </button>
 
-        {/* Plus — center, raised (UI placeholder) */}
+        {/* Plus — navigate to camera */}
         <div className="flex flex-1 flex-col items-center">
-          <button
-            aria-label="Add"
-            className="flex -translate-y-5 h-14 w-14 items-center justify-center rounded-full bg-zinc-900 text-white shadow-lg"
+          <a
+            href="/camera"
+            aria-label="Log food with camera"
+            className="flex -translate-y-5 h-14 w-14 items-center justify-center rounded-full bg-zinc-900 text-white shadow-lg hover:bg-zinc-700 active:scale-95 transition-transform"
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
               <path d="M12 5v14M5 12h14"/>
             </svg>
-          </button>
+          </a>
         </div>
 
         {/* History */}

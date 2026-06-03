@@ -52,9 +52,17 @@ export async function analyzeFood(
       if (!(field in parsed)) throw new Error(`Missing field: ${field}`)
     }
 
+    const name = String(parsed.name)
+
+    // Gemini sometimes returns a polite "no food detected" object instead of
+    // an error. Treat that as an analysis failure so the UI shows a clear message.
+    if (/no food|not food|cannot|unable|no dish|no meal|n\/a/i.test(name)) {
+      return { error: 'No food detected. Try a clearer photo.' }
+    }
+
     return {
       data: {
-        name: String(parsed.name),
+        name,
         calories: Math.round(Number(parsed.calories)),
         protein: Number(parsed.protein),
         carbs: Number(parsed.carbs),
