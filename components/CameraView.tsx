@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { analyzeFood, type FoodAnalysis } from '@/lib/actions/analyze'
+import { saveMeal } from '@/lib/actions/meal'
 
 type Screen = 'camera' | 'preview'
 type AnalyzeState = 'idle' | 'loading' | 'done' | 'error'
@@ -21,6 +22,9 @@ export default function CameraView() {
   const [analyzeState, setAnalyzeState] = useState<AnalyzeState>('idle')
   const [analysisResult, setAnalysisResult] = useState<FoodAnalysis | null>(null)
   const [analysisError, setAnalysisError] = useState<string | null>(null)
+
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop())
@@ -88,7 +92,22 @@ export default function CameraView() {
     setAnalyzeState('idle')
     setAnalysisResult(null)
     setAnalysisError(null)
+    setSaving(false)
+    setSaveError(null)
     startCamera()
+  }
+
+  async function handleSave() {
+    if (!analysisResult) return
+    setSaving(true)
+    setSaveError(null)
+    const res = await saveMeal(analysisResult)
+    if ('error' in res) {
+      setSaveError(res.error)
+      setSaving(false)
+    } else {
+      router.push('/home')
+    }
   }
 
   async function handleAnalyze() {
@@ -205,6 +224,29 @@ export default function CameraView() {
               <p className="rounded-2xl bg-red-500/20 px-4 py-3 text-xs text-red-300">
                 {analysisError}
               </p>
+            )}
+            {saveError && (
+              <p className="rounded-2xl bg-red-500/20 px-4 py-3 text-xs text-red-300">
+                {saveError}
+              </p>
+            )}
+
+            {/* Save Meal — only after a successful analysis */}
+            {analyzeState === 'done' && (
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="w-full rounded-2xl bg-white py-4 text-sm font-semibold text-zinc-900 transition-colors hover:bg-zinc-100 disabled:opacity-60"
+              >
+                {saving ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" strokeLinecap="round"/>
+                    </svg>
+                    Saving…
+                  </span>
+                ) : 'Save Meal'}
+              </button>
             )}
 
             {/* Action buttons */}
