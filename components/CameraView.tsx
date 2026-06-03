@@ -180,14 +180,29 @@ export default function CameraView() {
           </div>
         ) : (
           <>
-            {/* Result / error panel */}
+            {/* Result panel */}
             {analyzeState === 'done' && analysisResult && (
-              <pre className="max-h-44 overflow-auto rounded-xl bg-white/10 p-4 text-xs leading-relaxed text-white backdrop-blur-sm">
-                {JSON.stringify(analysisResult, null, 2)}
-              </pre>
+              <div className="rounded-2xl bg-white/10 px-4 py-3 backdrop-blur-sm">
+                <p className="text-sm font-semibold text-white">{analysisResult.name}</p>
+                <div className="mt-2 grid grid-cols-4 gap-1">
+                  {(
+                    [
+                      { label: 'Calories', value: String(analysisResult.calories), unit: 'kcal' },
+                      { label: 'Protein',  value: String(analysisResult.protein),  unit: 'g' },
+                      { label: 'Carbs',    value: String(analysisResult.carbs),    unit: 'g' },
+                      { label: 'Fat',      value: String(analysisResult.fat),      unit: 'g' },
+                    ] as const
+                  ).map(({ label, value, unit }) => (
+                    <div key={label} className="flex flex-col items-center rounded-xl bg-white/10 py-2">
+                      <span className="text-sm font-bold text-white">{value}<span className="text-[10px] font-normal">{unit}</span></span>
+                      <span className="text-[10px] text-white/60">{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
             {analyzeState === 'error' && analysisError && (
-              <p className="rounded-xl bg-red-500/20 px-4 py-3 text-xs text-red-300">
+              <p className="rounded-2xl bg-red-500/20 px-4 py-3 text-xs text-red-300">
                 {analysisError}
               </p>
             )}
