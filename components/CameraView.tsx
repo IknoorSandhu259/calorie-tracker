@@ -31,8 +31,12 @@ export default function CameraView() {
         audio: false,
       })
       streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
+      const video = videoRef.current
+      if (video) {
+        video.srcObject = stream
+        // Explicit play() is needed on some browsers when srcObject is set
+        // programmatically, even with the autoPlay attribute.
+        await video.play().catch(() => {})
       }
     } catch (err) {
       setError(
@@ -51,13 +55,23 @@ export default function CameraView() {
   function handleCapture() {
     const video = videoRef.current
     const canvas = canvasRef.current
-    if (!video || !canvas || !ready) return
+    if (!video || !canvas) return
 
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    canvas.getContext('2d')?.drawImage(video, 0, 0)
+    // Use actual video dimensions; fall back if stream hasn't reported them yet.
+    const w = video.videoWidth || 640
+    const h = video.videoHeight || 480
+    canvas.width = w
+    canvas.height = h
 
-    setCapturedImage(canvas.toDataURL('image/jpeg', 0.92))
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.drawImage(video, 0, 0, w, h)
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92)
+    // Guard against an empty canvas (would produce 'data:,')
+    if (!dataUrl || dataUrl === 'data:,') return
+
+    setCapturedImage(dataUrl)
     setScreen('preview')
     stopCamera()
   }
@@ -98,6 +112,7 @@ export default function CameraView() {
           autoPlay
           playsInline
           muted
+          onLoadedMetadata={() => setReady(true)}
           onCanPlay={() => setReady(true)}
           className={`h-full w-full object-cover${screen === 'preview' ? ' hidden' : ''}`}
         />
@@ -132,7 +147,7 @@ export default function CameraView() {
         {screen === 'camera' ? (
           <button
             onClick={handleCapture}
-            disabled={!ready || !!error}
+            disabled={!!error}
             aria-label="Take photo"
             className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white disabled:opacity-30"
           >
