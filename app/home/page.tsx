@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import CalorieRing from '@/components/CalorieRing'
 import SignOutButton from '@/components/SignOutButton'
+import LogWeightButton from '@/components/LogWeightButton'
 
 type Meal = {
   id: string
@@ -102,6 +103,7 @@ export default async function HomePage() {
         )}
       </section>
 
+      <LogWeightButton />
     </main>
   )
 }
