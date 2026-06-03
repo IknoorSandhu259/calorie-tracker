@@ -107,6 +107,7 @@ export default function CameraView() {
       setSaving(false)
     } else {
       router.push('/home')
+      router.refresh()
     }
   }
 

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import CalorieRing from '@/components/CalorieRing'
 import SignOutButton from '@/components/SignOutButton'
 import LogWeightButton from '@/components/LogWeightButton'
+import MealList from '@/components/MealList'
 
 type Meal = {
   id: string
@@ -80,27 +81,7 @@ export default async function HomePage() {
           Today&apos;s Meals
         </h2>
 
-        {mealList.length === 0 ? (
-          <div className="flex h-24 items-center justify-center rounded-2xl bg-white text-sm text-zinc-400 shadow-sm">
-            No meals logged today
-          </div>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {mealList.map((meal) => (
-              <li
-                key={meal.id}
-                className="flex items-center justify-between rounded-2xl bg-white px-4 py-3.5 shadow-sm"
-              >
-                <span className="text-sm font-medium text-zinc-800">
-                  {meal.name}
-                </span>
-                <span className="text-sm tabular-nums text-zinc-500">
-                  {meal.calories} kcal
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <MealList meals={mealList} />
       </section>
 
       <LogWeightButton />

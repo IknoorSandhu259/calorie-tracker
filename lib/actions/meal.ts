@@ -35,3 +35,25 @@ export async function saveMeal(
   if (error) return { error: error.message }
   return { success: true }
 }
+
+export async function deleteMeal(
+  id: string
+): Promise<{ success: true } | { error: string }> {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) return { error: 'Not authenticated.' }
+
+  const { error } = await supabase
+    .from('meals')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id)
+
+  if (error) return { error: error.message }
+  return { success: true }
+}
