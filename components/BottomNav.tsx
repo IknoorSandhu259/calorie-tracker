@@ -14,14 +14,14 @@ export default function BottomNav() {
         </button>
 
         {/* Progress */}
-        <button className="flex flex-1 flex-col items-center gap-1 py-1 text-zinc-400 hover:text-zinc-900 transition-colors">
+        <a href="/progress" className="flex flex-1 flex-col items-center gap-1 py-1 text-zinc-400 hover:text-zinc-900 transition-colors">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <rect x="3" y="12" width="4" height="8" rx="1"/>
             <rect x="10" y="7" width="4" height="13" rx="1"/>
             <rect x="17" y="3" width="4" height="17" rx="1"/>
           </svg>
           <span className="text-[10px] font-medium">Progress</span>
-        </button>
+        </a>
 
         {/* Plus — navigate to camera */}
         <div className="flex flex-1 flex-col items-center">
