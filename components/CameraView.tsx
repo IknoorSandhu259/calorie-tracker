@@ -118,7 +118,11 @@ export default function CameraView() {
     if ('error' in res) {
       setAnalysisError(res.error)
       setAnalyzeState('error')
+    } else if (/no food|not food|cannot|unable|no dish|no meal|n\/a/i.test(res.data.name)) {
+      setAnalysisError('No food detected. Try a clearer photo.')
+      setAnalyzeState('error')
     } else {
+      setAnalysisError(null)
       setAnalysisResult(res.data)
       setAnalyzeState('done')
     }
@@ -220,7 +224,7 @@ export default function CameraView() {
                 </div>
               </div>
             )}
-            {analyzeState === 'error' && analysisError && (
+            {!analysisResult && analysisError && (
               <p className="rounded-2xl bg-red-500/20 px-4 py-3 text-xs text-red-300">
                 {analysisError}
               </p>
