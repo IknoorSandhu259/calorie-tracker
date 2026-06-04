@@ -37,13 +37,13 @@ export default function BottomNav() {
         </div>
 
         {/* History */}
-        <button className="flex flex-1 flex-col items-center gap-1 py-1 text-zinc-400 hover:text-zinc-900 transition-colors">
+        <a href="/history" className="flex flex-1 flex-col items-center gap-1 py-1 text-zinc-400 hover:text-zinc-900 transition-colors">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="9"/>
             <path d="M12 7v5l3 3"/>
           </svg>
           <span className="text-[10px] font-medium">History</span>
-        </button>
+        </a>
 
         {/* Profile */}
         <button className="flex flex-1 flex-col items-center gap-1 py-1 text-zinc-400 hover:text-zinc-900 transition-colors">
