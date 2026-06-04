@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { addMealManual } from '@/lib/actions/meal'
 
 function todayISO(): string {
@@ -22,6 +22,8 @@ const labelClass = 'text-xs font-semibold uppercase tracking-widest text-zinc-40
 
 export default function AddMealForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const returnTo = searchParams.get('from') ?? '/history'
   const [name, setName] = useState('')
   const [calories, setCalories] = useState('')
   const [date, setDate] = useState(todayISO())
@@ -55,7 +57,7 @@ export default function AddMealForm() {
       setError(res.error)
     } else {
       router.refresh()
-      router.push('/history')
+      router.push(returnTo)
     }
   }
 
@@ -63,7 +65,7 @@ export default function AddMealForm() {
     <main className="flex min-h-screen flex-col bg-zinc-50 px-5 pt-12">
       {/* Header */}
       <div className="mb-8 flex items-center gap-3">
-        <a href="/history" aria-label="Back" className="text-zinc-400 hover:text-zinc-900 transition-colors">
+        <a href={returnTo} aria-label="Back" className="text-zinc-400 hover:text-zinc-900 transition-colors">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M19 12H5M12 5l-7 7 7 7" />
           </svg>
