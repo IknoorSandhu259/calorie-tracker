@@ -2,18 +2,31 @@
 
 import { useState, useEffect } from 'react'
 import { signOut } from '@/lib/actions/auth'
+import { applyTheme } from '@/components/ThemeSync'
 
 export const CALORIE_GOAL_KEY = 'calorie_goal'
 export const DEFAULT_CALORIE_GOAL = 2000
 
+type Theme = 'light' | 'dark' | 'system'
+
 export default function ProfileView({ email }: { email: string }) {
   const [goal, setGoal] = useState(String(DEFAULT_CALORIE_GOAL))
   const [saved, setSaved] = useState(false)
+  const [theme, setTheme] = useState<Theme>('system')
 
   useEffect(() => {
-    const stored = localStorage.getItem(CALORIE_GOAL_KEY)
-    if (stored) setGoal(stored)
+    const storedGoal = localStorage.getItem(CALORIE_GOAL_KEY)
+    if (storedGoal) setGoal(storedGoal)
+
+    const storedTheme = localStorage.getItem('theme') as Theme | null
+    if (storedTheme) setTheme(storedTheme)
   }, [])
+
+  function handleTheme(t: Theme) {
+    setTheme(t)
+    localStorage.setItem('theme', t)
+    applyTheme(t)
+  }
 
   function handleChange(value: string) {
     setGoal(value)
@@ -54,6 +67,29 @@ export default function ProfileView({ email }: { email: string }) {
             <span className="text-sm text-zinc-400">kcal</span>
           </div>
           {saved && <p className="mt-2 text-xs text-green-600">Saved</p>}
+        </div>
+      </section>
+
+      {/* Theme */}
+      <section className="mb-6">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-400">
+          Theme
+        </h2>
+        <div className="flex gap-1 rounded-2xl bg-white p-1 shadow-sm">
+          {(['light', 'system', 'dark'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => handleTheme(t)}
+              className={[
+                'flex-1 rounded-xl py-2.5 text-sm font-medium capitalize transition-colors',
+                theme === t
+                  ? 'bg-zinc-900 text-white'
+                  : 'text-zinc-500 hover:text-zinc-900',
+              ].join(' ')}
+            >
+              {t === 'light' ? 'Light' : t === 'dark' ? 'Dark' : 'System'}
+            </button>
+          ))}
         </div>
       </section>
 

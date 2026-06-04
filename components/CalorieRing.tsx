@@ -25,8 +25,9 @@ export default function CalorieRing({ consumed, goal }: Props) {
             cy="62"
             r={RADIUS}
             fill="none"
-            stroke="#e4e4e7"
+            stroke="currentColor"
             strokeWidth={STROKE}
+            className="text-zinc-200"
           />
           {/* Fill */}
           <circle
@@ -34,12 +35,13 @@ export default function CalorieRing({ consumed, goal }: Props) {
             cy="62"
             r={RADIUS}
             fill="none"
-            stroke="#18181b"
+            stroke="currentColor"
             strokeWidth={STROKE}
             strokeLinecap="round"
             strokeDasharray={CIRCUMFERENCE}
             strokeDashoffset={dashoffset}
             style={{ transition: 'stroke-dashoffset 0.4s ease' }}
+            className="text-zinc-900"
           />
         </svg>
 

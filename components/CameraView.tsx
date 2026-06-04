@@ -5,11 +5,25 @@ import { useRouter } from 'next/navigation'
 import { analyzeFood, type FoodAnalysis } from '@/lib/actions/analyze'
 import { saveMeal } from '@/lib/actions/meal'
 
+function useDarkMode() {
+  const [dark, setDark] = useState(false)
+  useEffect(() => {
+    setDark(document.documentElement.classList.contains('dark'))
+    const observer = new MutationObserver(() =>
+      setDark(document.documentElement.classList.contains('dark'))
+    )
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [])
+  return dark
+}
+
 type Screen = 'camera' | 'preview'
 type AnalyzeState = 'idle' | 'loading' | 'done' | 'error'
 
 export default function CameraView() {
   const router = useRouter()
+  const dark = useDarkMode()
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -141,7 +155,11 @@ export default function CameraView() {
         <button
           onClick={handleBack}
           aria-label="Go back"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm"
+          className={`flex h-9 w-9 items-center justify-center rounded-full backdrop-blur-sm transition-colors ${
+            dark
+              ? 'bg-zinc-800/80 text-white hover:bg-zinc-700/80'
+              : 'bg-white/90 text-zinc-900 hover:bg-white'
+          }`}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M15 18l-6-6 6-6" />
