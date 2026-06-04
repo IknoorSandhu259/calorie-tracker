@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import type { WeightLogInsert } from '@/lib/supabase/types'
 
 export type WeightActionState = {
   error?: string
@@ -30,16 +31,15 @@ export async function saveWeightLog(
     return { error: 'Not authenticated.' }
   }
 
+  const weightLog: WeightLogInsert = {
+    user_id: user.id,
+    date: logDate,
+    weight,
+  }
+
   const { error } = await supabase
     .from('weight_logs')
-    .upsert(
-      {
-        user_id: user.id,
-        date: logDate,
-        weight: weight,
-      },
-      { onConflict: 'user_id,date' }
-    )
+    .upsert(weightLog, { onConflict: 'user_id,date' })
 
   if (error) {
     return { error: error.message }
