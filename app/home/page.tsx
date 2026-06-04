@@ -1,9 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import CalorieRing from '@/components/CalorieRing'
 import SignOutButton from '@/components/SignOutButton'
 import LogWeightButton from '@/components/LogWeightButton'
-import MealList from '@/components/MealList'
+import HomeMeals from '@/components/HomeMeals'
 
 type Meal = {
   id: string
@@ -50,7 +49,6 @@ export default async function HomePage() {
     .order('created_at', { ascending: true })
 
   const mealList = (meals ?? []) as Meal[]
-  const totalCalories = mealList.reduce((sum, m) => sum + (m.calories ?? 0), 0)
 
   return (
     <main className="flex min-h-screen flex-col bg-zinc-50">
@@ -67,22 +65,7 @@ export default async function HomePage() {
         </div>
       </header>
 
-      {/* Calorie ring */}
-      <section className="flex justify-center py-8">
-        <CalorieRing consumed={totalCalories} goal={2000} />
-      </section>
-
-      {/* Divider */}
-      <div className="mx-5 h-px bg-zinc-200" />
-
-      {/* Today's Meals */}
-      <section className="flex-1 px-5 pt-5">
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-400">
-          Today&apos;s Meals
-        </h2>
-
-        <MealList meals={mealList} />
-      </section>
+      <HomeMeals initialMeals={mealList} goal={2000} />
 
       <LogWeightButton />
     </main>

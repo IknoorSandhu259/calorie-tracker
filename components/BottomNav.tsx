@@ -5,13 +5,13 @@ export default function BottomNav() {
         className="fixed bottom-0 inset-x-0 z-40 flex h-16 items-end bg-white border-t border-zinc-100 pb-2"
       >
         {/* Home */}
-        <button className="flex flex-1 flex-col items-center gap-1 py-1 text-zinc-400 hover:text-zinc-900 transition-colors">
+        <a href="/home" className="flex flex-1 flex-col items-center gap-1 py-1 text-zinc-400 hover:text-zinc-900 transition-colors">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/>
             <path d="M9 21V12h6v9"/>
           </svg>
           <span className="text-[10px] font-medium">Home</span>
-        </button>
+        </a>
 
         {/* Progress */}
         <a href="/progress" className="flex flex-1 flex-col items-center gap-1 py-1 text-zinc-400 hover:text-zinc-900 transition-colors">

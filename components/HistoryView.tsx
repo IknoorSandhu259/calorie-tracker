@@ -25,6 +25,7 @@ export default function HistoryView() {
   const [meals, setMeals] = useState<Meal[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [fetchKey, setFetchKey] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -44,7 +45,7 @@ export default function HistoryView() {
     return () => {
       cancelled = true
     }
-  }, [selected])
+  }, [selected, fetchKey])
 
   async function handleDelete(id: string) {
     const snapshot = meals
@@ -54,6 +55,8 @@ export default function HistoryView() {
     if ('error' in res) {
       setMeals(snapshot)
       setDeleteError(res.error)
+    } else {
+      setFetchKey((k) => k + 1)
     }
   }
 

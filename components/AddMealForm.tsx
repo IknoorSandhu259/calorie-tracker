@@ -54,8 +54,8 @@ export default function AddMealForm() {
     if ('error' in res) {
       setError(res.error)
     } else {
-      router.push('/history')
       router.refresh()
+      router.push('/history')
     }
   }
 
