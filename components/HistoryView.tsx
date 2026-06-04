@@ -23,24 +23,41 @@ export default function HistoryView() {
   const [selected, setSelected] = useState(todayISO())
   const [meals, setMeals] = useState<MealSummary[]>([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [fetchKey, setFetchKey] = useState(0)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
+    setFetchError(null)
     const supabase = createClient()
     supabase
       .from('meals')
       .select('id, name, calories')
       .eq('date', selected)
       .order('created_at', { ascending: true })
-      .then(({ data }) => {
-        if (!cancelled) {
-          setMeals(data ?? [])
-          setLoading(false)
-        }
-      })
+      .then(
+        ({ data, error }) => {
+          if (!cancelled) {
+            if (error) {
+              setMeals([])
+              setFetchError('Could not load meals.')
+              setLoading(false)
+              return
+            }
+            setMeals(data ?? [])
+            setLoading(false)
+          }
+        },
+        () => {
+          if (!cancelled) {
+            setMeals([])
+            setFetchError('Could not load meals.')
+            setLoading(false)
+          }
+        },
+      )
     return () => {
       cancelled = true
     }
@@ -192,6 +209,16 @@ export default function HistoryView() {
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
               />
             </svg>
+          </div>
+        ) : fetchError ? (
+          <div className="flex h-24 flex-col items-center justify-center rounded-2xl bg-white shadow-sm">
+            <p className="text-sm text-zinc-500">{fetchError}</p>
+            <button
+              onClick={() => setFetchKey((k) => k + 1)}
+              className="mt-3 rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-700"
+            >
+              Retry
+            </button>
           </div>
         ) : meals.length === 0 ? (
           <div className="flex h-24 items-center justify-center rounded-2xl bg-white text-sm text-zinc-400 shadow-sm">

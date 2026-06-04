@@ -35,7 +35,10 @@ export default async function ProgressPage() {
   } = await supabase.auth.getUser()
   if (!user) redirect('/auth/signin')
 
-  const [{ data: weightRows }, { data: mealRows }] = await Promise.all([
+  const [
+    { data: weightRows, error: weightError },
+    { data: mealRows, error: mealError },
+  ] = await Promise.all([
     supabase
       .from('weight_logs')
       .select('date, weight')
@@ -48,6 +51,25 @@ export default async function ProgressPage() {
       .eq('user_id', user.id)
       .gte('date', isoDate(6)),
   ])
+
+  if (weightError || mealError) {
+    return (
+      <main className="flex min-h-screen flex-col bg-zinc-50 px-5 pt-12">
+        <h1 className="mb-8 text-2xl font-bold text-zinc-900">Progress</h1>
+        <section className="rounded-2xl bg-white p-5 text-center shadow-sm">
+          <p className="text-sm text-zinc-500">Could not load progress data.</p>
+          <form action="/progress" className="mt-3">
+            <button
+              type="submit"
+              className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-700"
+            >
+              Retry
+            </button>
+          </form>
+        </section>
+      </main>
+    )
+  }
 
   const weightData = ((weightRows ?? []) as WeightProgressRow[]).map((r) => ({
     date: shortDate(r.date),

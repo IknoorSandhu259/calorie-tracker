@@ -32,7 +32,7 @@ export default async function HomePage() {
 
   const today = todayISO()
 
-  const { data: meals } = await supabase
+  const { data: meals, error: mealsError } = await supabase
     .from('meals')
     .select('id, name, calories, protein, carbs, fat, created_at')
     .eq('user_id', user.id)
@@ -56,7 +56,21 @@ export default async function HomePage() {
         </div>
       </header>
 
-      <HomeMeals initialMeals={mealList} goal={2000} />
+      {mealsError ? (
+        <section className="mx-5 mt-8 rounded-2xl bg-white p-5 text-center shadow-sm">
+          <p className="text-sm text-zinc-500">Could not load meals.</p>
+          <form action="/home" className="mt-3">
+            <button
+              type="submit"
+              className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-700"
+            >
+              Retry
+            </button>
+          </form>
+        </section>
+      ) : (
+        <HomeMeals initialMeals={mealList} goal={2000} />
+      )}
 
       <LogWeightButton />
     </main>
