@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { deleteMeal } from '@/lib/actions/meal'
 import CalorieRing from '@/components/CalorieRing'
+import { CALORIE_GOAL_KEY, DEFAULT_CALORIE_GOAL } from '@/components/ProfileView'
 
 type Meal = {
   id: string
@@ -23,6 +24,13 @@ export default function HomeMeals({
 }) {
   const [meals, setMeals] = useState(initialMeals)
   const [error, setError] = useState<string | null>(null)
+  const [effectiveGoal, setEffectiveGoal] = useState(goal)
+
+  useEffect(() => {
+    const stored = localStorage.getItem(CALORIE_GOAL_KEY)
+    const n = Number(stored)
+    if (stored && Number.isFinite(n) && n > 0) setEffectiveGoal(n)
+  }, [])
 
   const totalCalories = meals.reduce((sum, m) => sum + (m.calories ?? 0), 0)
 
@@ -40,7 +48,7 @@ export default function HomeMeals({
   return (
     <>
       <section className="flex justify-center py-8">
-        <CalorieRing consumed={totalCalories} goal={goal} />
+        <CalorieRing consumed={totalCalories} goal={effectiveGoal} />
       </section>
 
       <div className="mx-5 h-px bg-zinc-200" />

@@ -46,13 +46,13 @@ export default function BottomNav() {
         </a>
 
         {/* Profile */}
-        <button className="flex flex-1 flex-col items-center gap-1 py-1 text-zinc-400 hover:text-zinc-900 transition-colors">
+        <a href="/profile" className="flex flex-1 flex-col items-center gap-1 py-1 text-zinc-400 hover:text-zinc-900 transition-colors">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="8" r="4"/>
             <path d="M4 20c0-4 3.582-7 8-7s8 3 8 7"/>
           </svg>
           <span className="text-[10px] font-medium">Profile</span>
-        </button>
+        </a>
     </nav>
   )
 }

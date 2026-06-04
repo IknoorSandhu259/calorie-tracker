@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import SignOutButton from '@/components/SignOutButton'
 import LogWeightButton from '@/components/LogWeightButton'
 import HomeMeals from '@/components/HomeMeals'
 import AddMealButton from '@/components/AddMealButton'
@@ -61,9 +60,8 @@ export default async function HomePage() {
           </p>
           <h1 className="mt-1 text-2xl font-bold text-zinc-900">Today</h1>
         </div>
-        <div className="flex items-center gap-3 pt-1">
+        <div className="pt-1">
           <AddMealButton returnTo="/home" />
-          <SignOutButton />
         </div>
       </header>
 
