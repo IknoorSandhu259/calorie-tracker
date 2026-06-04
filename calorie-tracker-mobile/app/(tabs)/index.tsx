@@ -1,98 +1,203 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useCallback, useState } from 'react'
+import {
+  View, Text, ScrollView, TouchableOpacity,
+  RefreshControl, Alert, StyleSheet, ActivityIndicator, Platform,
+} from 'react-native'
+import { useFocusEffect, router } from 'expo-router'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { Feather } from '@expo/vector-icons'
+import { supabase } from '../../lib/supabase'
+import CalorieRing from '../../components/CalorieRing'
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+const CALORIE_GOAL_KEY = 'calorie_goal'
+const DEFAULT_GOAL = 2000
+
+type Meal = { id: string; name: string; calories: number }
+
+function todayISO(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function todayLabel(): string {
+  return new Date().toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric',
+  })
+}
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const [meals, setMeals] = useState<Meal[]>([])
+  const [goal, setGoal] = useState(DEFAULT_GOAL)
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
-  );
+  const totalCalories = meals.reduce((sum, m) => sum + m.calories, 0)
+
+  async function loadData() {
+    const [{ data: { user } }, stored] = await Promise.all([
+      supabase.auth.getUser(),
+      AsyncStorage.getItem(CALORIE_GOAL_KEY),
+    ])
+    if (!user) return
+
+    if (stored) {
+      const n = Number(stored)
+      if (Number.isFinite(n) && n > 0) setGoal(n)
+    }
+
+    const { data } = await supabase
+      .from('meals')
+      .select('id, name, calories')
+      .eq('user_id', user.id)
+      .eq('date', todayISO())
+      .order('created_at', { ascending: true })
+
+    setMeals(data ?? [])
+  }
+
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true)
+      loadData().finally(() => setLoading(false))
+    }, [])
+  )
+
+  async function handleDelete(id: string, name: string) {
+    const snapshot = meals
+    setMeals(prev => prev.filter(m => m.id !== id))
+    setDeleteError(null)
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { error } = await supabase
+      .from('meals')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id)
+
+    if (error) {
+      setMeals(snapshot)
+      setDeleteError('Could not delete meal.')
+    }
+  }
+
+  async function handleRefresh() {
+    setRefreshing(true)
+    await loadData()
+    setRefreshing(false)
+  }
+
+  return (
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+    >
+      {/* Header */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.dateLabel}>{todayLabel()}</Text>
+          <Text style={styles.title}>Today</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => router.push('/add-meal?from=%2F(tabs)')}
+          accessibilityLabel="Add meal"
+        >
+          <Text style={styles.addButtonText}>Add Meal</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Calorie ring */}
+      <View style={styles.ringSection}>
+        <CalorieRing consumed={totalCalories} goal={goal} />
+      </View>
+
+      {/* Divider */}
+      <View style={styles.divider} />
+
+      {/* Meals */}
+      <View style={styles.mealsSection}>
+        <Text style={styles.sectionLabel}>Today's Meals</Text>
+
+        {deleteError && <Text style={styles.errorText}>{deleteError}</Text>}
+
+        {loading ? (
+          <View style={styles.placeholder}>
+            <ActivityIndicator color="#a1a1aa" />
+          </View>
+        ) : meals.length === 0 ? (
+          <View style={styles.placeholder}>
+            <Text style={styles.placeholderText}>No meals logged today</Text>
+          </View>
+        ) : (
+          meals.map(meal => (
+            <View key={meal.id} style={styles.mealCard}>
+              <Text style={styles.mealName} numberOfLines={1}>{meal.name}</Text>
+              <View style={styles.mealRight}>
+                <Text style={styles.mealCal}>{meal.calories} kcal</Text>
+                <TouchableOpacity
+                  onPress={() => handleDelete(meal.id, meal.name)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel={`Delete ${meal.name}`}
+                >
+                  <Feather name="trash-2" size={15} color="#d4d4d8" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))
+        )}
+      </View>
+    </ScrollView>
+  )
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  scroll: { flex: 1, backgroundColor: '#fafafa' },
+  content: { paddingBottom: 32 },
+  header: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 56 : 32,
+    paddingBottom: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  dateLabel: {
+    fontSize: 11, fontWeight: '500', color: '#a1a1aa',
+    letterSpacing: 1.5, textTransform: 'uppercase',
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  title: { fontSize: 28, fontWeight: '700', color: '#18181b', marginTop: 4 },
+  addButton: {
+    backgroundColor: '#18181b', borderRadius: 12,
+    paddingHorizontal: 16, paddingVertical: 9, marginTop: 6,
   },
-});
+  addButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  ringSection: { alignItems: 'center', paddingVertical: 32 },
+  divider: { height: 1, backgroundColor: '#e4e4e7', marginHorizontal: 20 },
+  mealsSection: { paddingHorizontal: 20, paddingTop: 20, gap: 8 },
+  sectionLabel: {
+    fontSize: 10, fontWeight: '600', color: '#a1a1aa',
+    letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4,
+  },
+  errorText: { fontSize: 12, color: '#ef4444', marginBottom: 4 },
+  placeholder: {
+    backgroundColor: '#fff', borderRadius: 16, height: 96,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 }, elevation: 1,
+  },
+  placeholderText: { fontSize: 14, color: '#a1a1aa' },
+  mealCard: {
+    backgroundColor: '#fff', borderRadius: 16,
+    paddingHorizontal: 16, paddingVertical: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 }, elevation: 1,
+  },
+  mealName: { fontSize: 14, fontWeight: '500', color: '#27272a', flex: 1, marginRight: 12 },
+  mealRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  mealCal: { fontSize: 14, color: '#71717a', fontVariant: ['tabular-nums'] },
+})
