@@ -87,23 +87,23 @@ export default async function ProgressPage() {
   })
 
   return (
-    <main className="flex min-h-screen flex-col bg-zinc-50 px-5 pt-12">
+    <main className="flex min-h-screen flex-col overflow-x-hidden bg-zinc-50 px-5 pt-12">
       <h1 className="mb-8 text-2xl font-bold text-zinc-900">Progress</h1>
 
-      <section className="mb-8">
+      <section className="mb-8 min-w-0">
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-400">
           Weight — last 30 days
         </h2>
-        <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <div className="min-w-0 overflow-hidden rounded-2xl bg-white p-4 shadow-sm">
           <WeightChart data={weightData} />
         </div>
       </section>
 
-      <section>
+      <section className="min-w-0">
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-400">
           Calories — last 7 days
         </h2>
-        <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <div className="min-w-0 overflow-hidden rounded-2xl bg-white p-4 shadow-sm">
           <CalorieChart data={calorieData} />
         </div>
       </section>

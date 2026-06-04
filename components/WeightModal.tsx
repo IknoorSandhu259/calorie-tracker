@@ -22,11 +22,11 @@ export default function WeightModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-5"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 px-5 py-[calc(env(safe-area-inset-top)+1rem)]"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"
+        className="max-h-full w-full max-w-sm overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -83,7 +83,7 @@ export default function WeightModal({ onClose }: { onClose: () => void }) {
             </p>
           )}
 
-          <div className="mt-1 flex gap-3">
+          <div className="mt-1 flex flex-col gap-3 min-[360px]:flex-row">
             <button
               type="button"
               onClick={onClose}

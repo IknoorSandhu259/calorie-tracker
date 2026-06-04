@@ -2,10 +2,10 @@ export default function BottomNav() {
   return (
     <nav
         aria-label="Main navigation"
-        className="fixed bottom-0 inset-x-0 z-40 flex h-16 items-end bg-white border-t border-zinc-100 pb-2"
+        className="fixed bottom-0 inset-x-0 z-40 flex min-h-16 items-end bg-white border-t border-zinc-100 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]"
       >
         {/* Home */}
-        <a href="/home" className="flex flex-1 flex-col items-center gap-1 py-1 text-zinc-400 hover:text-zinc-900 transition-colors">
+        <a href="/home" className="flex min-w-0 flex-1 flex-col items-center gap-1 py-1 text-zinc-400 hover:text-zinc-900 transition-colors">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/>
             <path d="M9 21V12h6v9"/>
@@ -14,7 +14,7 @@ export default function BottomNav() {
         </a>
 
         {/* Progress */}
-        <a href="/progress" className="flex flex-1 flex-col items-center gap-1 py-1 text-zinc-400 hover:text-zinc-900 transition-colors">
+        <a href="/progress" className="flex min-w-0 flex-1 flex-col items-center gap-1 py-1 text-zinc-400 hover:text-zinc-900 transition-colors">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <rect x="3" y="12" width="4" height="8" rx="1"/>
             <rect x="10" y="7" width="4" height="13" rx="1"/>
@@ -24,7 +24,7 @@ export default function BottomNav() {
         </a>
 
         {/* Plus — navigate to camera */}
-        <div className="flex flex-1 flex-col items-center">
+        <div className="flex min-w-0 flex-1 flex-col items-center">
           <a
             href="/camera"
             aria-label="Log food with camera"
@@ -37,7 +37,7 @@ export default function BottomNav() {
         </div>
 
         {/* History */}
-        <a href="/history" className="flex flex-1 flex-col items-center gap-1 py-1 text-zinc-400 hover:text-zinc-900 transition-colors">
+        <a href="/history" className="flex min-w-0 flex-1 flex-col items-center gap-1 py-1 text-zinc-400 hover:text-zinc-900 transition-colors">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="9"/>
             <path d="M12 7v5l3 3"/>
@@ -46,7 +46,7 @@ export default function BottomNav() {
         </a>
 
         {/* Profile */}
-        <a href="/profile" className="flex flex-1 flex-col items-center gap-1 py-1 text-zinc-400 hover:text-zinc-900 transition-colors">
+        <a href="/profile" className="flex min-w-0 flex-1 flex-col items-center gap-1 py-1 text-zinc-400 hover:text-zinc-900 transition-colors">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="8" r="4"/>
             <path d="M4 20c0-4 3.582-7 8-7s8 3 8 7"/>

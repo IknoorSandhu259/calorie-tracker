@@ -48,7 +48,8 @@ export default function CalorieChart({ data }: { data: Point[] }) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={192}>
+    <div className="min-w-0">
+      <ResponsiveContainer width="100%" height={192}>
       <BarChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
         <CartesianGrid strokeDasharray="3 3" stroke={c.grid} vertical={false} />
         <XAxis
@@ -74,6 +75,7 @@ export default function CalorieChart({ data }: { data: Point[] }) {
         />
         <Bar dataKey="calories" fill={c.bar} radius={[4, 4, 0, 0]} maxBarSize={40} />
       </BarChart>
-    </ResponsiveContainer>
+      </ResponsiveContainer>
+    </div>
   )
 }

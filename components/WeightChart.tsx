@@ -48,7 +48,8 @@ export default function WeightChart({ data }: { data: Point[] }) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={192}>
+    <div className="min-w-0">
+      <ResponsiveContainer width="100%" height={192}>
       <LineChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
         <CartesianGrid strokeDasharray="3 3" stroke={c.grid} />
         <XAxis
@@ -83,6 +84,7 @@ export default function WeightChart({ data }: { data: Point[] }) {
           activeDot={{ r: 4, fill: c.line }}
         />
       </LineChart>
-    </ResponsiveContainer>
+      </ResponsiveContainer>
+    </div>
   )
 }

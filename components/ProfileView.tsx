@@ -45,7 +45,7 @@ export default function ProfileView({ email }: { email: string }) {
       {/* Email */}
       <section className="mb-6 rounded-2xl bg-white px-4 py-4 shadow-sm">
         <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-zinc-400">Email</p>
-        <p className="text-sm text-zinc-800">{email}</p>
+        <p className="break-all text-sm text-zinc-800">{email}</p>
       </section>
 
       {/* Calorie Goal */}

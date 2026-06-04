@@ -13,7 +13,7 @@ export default function LogWeightButton() {
       <button
         onClick={() => setOpen(true)}
         aria-label="Log weight"
-        className="fixed bottom-24 right-5 flex items-center gap-2 rounded-full bg-zinc-900 px-5 py-3 text-sm font-semibold text-white shadow-lg hover:bg-zinc-700 active:scale-95 transition-transform"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+6rem)] right-5 flex items-center gap-2 rounded-full bg-zinc-900 px-5 py-3 text-sm font-semibold text-white shadow-lg hover:bg-zinc-700 active:scale-95 transition-transform"
       >
         Log Weight
       </button>

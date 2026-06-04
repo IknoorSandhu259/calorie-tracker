@@ -149,9 +149,9 @@ export default function CameraView() {
   }
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-black">
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-black">
       {/* Top bar */}
-      <div className="absolute inset-x-0 top-0 z-10 flex items-center gap-3 px-4 pb-4 pt-12">
+      <div className="absolute inset-x-0 top-0 z-10 flex items-center gap-3 px-4 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)]">
         <button
           onClick={handleBack}
           aria-label="Go back"
@@ -208,7 +208,7 @@ export default function CameraView() {
       <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
 
       {/* Bottom controls */}
-      <div className="flex flex-col gap-3 px-8 pb-16 pt-6">
+      <div className="max-h-[55svh] overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-6 min-[390px]:px-8">
         {screen === 'camera' ? (
           <div className="flex justify-center">
             <button
@@ -225,8 +225,8 @@ export default function CameraView() {
             {/* Result panel */}
             {analyzeState === 'done' && analysisResult && (
               <div className="rounded-2xl bg-white/10 px-4 py-3 backdrop-blur-sm">
-                <p className="text-sm font-semibold text-white">{analysisResult.name}</p>
-                <div className="mt-2 grid grid-cols-4 gap-1">
+                <p className="truncate text-sm font-semibold text-white">{analysisResult.name}</p>
+                <div className="mt-2 grid grid-cols-2 gap-1 min-[360px]:grid-cols-4">
                   {(
                     [
                       { label: 'Calories', value: String(analysisResult.calories), unit: 'kcal' },

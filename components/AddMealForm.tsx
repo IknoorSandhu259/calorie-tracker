@@ -62,7 +62,7 @@ export default function AddMealForm() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-zinc-50 px-5 pt-12">
+    <main className="flex min-h-screen flex-col overflow-x-hidden bg-zinc-50 px-5 pt-12">
       {/* Header */}
       <div className="mb-8 flex items-center gap-3">
         <a href={returnTo} aria-label="Back" className="text-zinc-400 hover:text-zinc-900 transition-colors">
@@ -117,7 +117,7 @@ export default function AddMealForm() {
         {/* Optional macros */}
         <div className="flex flex-col gap-1.5">
           <span className={labelClass}>Macros — optional</span>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] font-medium text-zinc-400" htmlFor="meal-protein">Protein (g)</label>
               <input
