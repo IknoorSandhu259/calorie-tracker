@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import type { FoodAnalysis } from './analyze'
+import type { MealInsert } from '@/lib/supabase/types'
 
 function todayISO(): string {
   const d = new Date()
@@ -22,7 +23,7 @@ export async function saveMeal(
 
   if (authError || !user) return { error: 'Not authenticated.' }
 
-  const { error } = await supabase.from('meals').insert({
+  const meal: MealInsert = {
     user_id: user.id,
     name: analysis.name,
     calories: analysis.calories,
@@ -30,7 +31,9 @@ export async function saveMeal(
     carbs: analysis.carbs,
     fat: analysis.fat,
     date: todayISO(),
-  })
+  }
+
+  const { error } = await supabase.from('meals').insert(meal)
 
   if (error) return { error: error.message }
   return { success: true }
@@ -53,7 +56,7 @@ export async function addMealManual(
 
   if (authError || !user) return { error: 'Not authenticated.' }
 
-  const { error } = await supabase.from('meals').insert({
+  const meal: MealInsert = {
     user_id: user.id,
     name: name.trim(),
     calories,
@@ -61,7 +64,9 @@ export async function addMealManual(
     ...(protein !== null && { protein }),
     ...(carbs !== null && { carbs }),
     ...(fat !== null && { fat }),
-  })
+  }
+
+  const { error } = await supabase.from('meals').insert(meal)
 
   if (error) return { error: error.message }
   return { success: true }

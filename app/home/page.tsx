@@ -3,16 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import LogWeightButton from '@/components/LogWeightButton'
 import HomeMeals from '@/components/HomeMeals'
 import AddMealButton from '@/components/AddMealButton'
-
-type Meal = {
-  id: string
-  name: string
-  calories: number
-  protein: number | null
-  carbs: number | null
-  fat: number | null
-  created_at: string
-}
+import type { HomeMeal } from '@/lib/supabase/types'
 
 function todayLabel(): string {
   return new Date().toLocaleDateString('en-US', {
@@ -48,7 +39,7 @@ export default async function HomePage() {
     .eq('date', today)
     .order('created_at', { ascending: true })
 
-  const mealList = (meals ?? []) as Meal[]
+  const mealList: HomeMeal[] = meals ?? []
 
   return (
     <main className="flex min-h-screen flex-col bg-zinc-50">

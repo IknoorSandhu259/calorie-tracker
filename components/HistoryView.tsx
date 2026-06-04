@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { deleteMeal } from '@/lib/actions/meal'
-
-type Meal = { id: string; name: string; calories: number }
+import type { MealSummary } from '@/lib/supabase/types'
 
 const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 
@@ -22,7 +21,7 @@ export default function HistoryView() {
   const [viewYear, setViewYear] = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth()) // 0-indexed
   const [selected, setSelected] = useState(todayISO())
-  const [meals, setMeals] = useState<Meal[]>([])
+  const [meals, setMeals] = useState<MealSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [fetchKey, setFetchKey] = useState(0)

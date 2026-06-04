@@ -2,6 +2,10 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import WeightChart from '@/components/WeightChart'
 import CalorieChart from '@/components/CalorieChart'
+import type { MealRow, WeightLogRow } from '@/lib/supabase/types'
+
+type WeightProgressRow = Pick<WeightLogRow, 'date' | 'weight'>
+type CalorieProgressRow = Pick<MealRow, 'date' | 'calories'>
 
 function isoDate(daysBack: number): string {
   const d = new Date()
@@ -45,15 +49,15 @@ export default async function ProgressPage() {
       .gte('date', isoDate(6)),
   ])
 
-  const weightData = (weightRows ?? []).map((r) => ({
+  const weightData = ((weightRows ?? []) as WeightProgressRow[]).map((r) => ({
     date: shortDate(r.date),
-    weight: r.weight as number,
+    weight: r.weight,
   }))
 
   // Build a map of date → total calories, then fill all 7 days
   const calMap = new Map<string, number>()
-  for (const row of mealRows ?? []) {
-    calMap.set(row.date, (calMap.get(row.date) ?? 0) + (row.calories as number))
+  for (const row of (mealRows ?? []) as CalorieProgressRow[]) {
+    calMap.set(row.date, (calMap.get(row.date) ?? 0) + row.calories)
   }
   const calorieData = Array.from({ length: 7 }, (_, i) => {
     const iso = isoDate(6 - i)

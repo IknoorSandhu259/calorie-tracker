@@ -4,22 +4,13 @@ import { useState, useEffect } from 'react'
 import { deleteMeal } from '@/lib/actions/meal'
 import CalorieRing from '@/components/CalorieRing'
 import { CALORIE_GOAL_KEY, DEFAULT_CALORIE_GOAL } from '@/components/ProfileView'
-
-type Meal = {
-  id: string
-  name: string
-  calories: number
-  protein: number | null
-  carbs: number | null
-  fat: number | null
-  created_at: string
-}
+import type { HomeMeal } from '@/lib/supabase/types'
 
 export default function HomeMeals({
   initialMeals,
   goal,
 }: {
-  initialMeals: Meal[]
+  initialMeals: HomeMeal[]
   goal: number
 }) {
   const [meals, setMeals] = useState(initialMeals)

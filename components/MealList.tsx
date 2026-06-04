@@ -2,10 +2,9 @@
 
 import { useState } from 'react'
 import { deleteMeal } from '@/lib/actions/meal'
+import type { MealSummary } from '@/lib/supabase/types'
 
-type Meal = { id: string; name: string; calories: number }
-
-export default function MealList({ meals: initial }: { meals: Meal[] }) {
+export default function MealList({ meals: initial }: { meals: MealSummary[] }) {
   const [meals, setMeals] = useState(initial)
   const [error, setError] = useState<string | null>(null)
 
