@@ -1,11 +1,12 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, ActivityIndicator, Platform, useWindowDimensions,
+  StyleSheet, ActivityIndicator, Platform,
 } from 'react-native'
 import { useFocusEffect, router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import { supabase } from '../../lib/supabase'
+import { useTheme, type AppColors } from '../../constants/colors'
 
 type Meal = { id: string; name: string; calories: number }
 
@@ -21,10 +22,12 @@ function toISO(year: number, month: number, day: number): string {
 }
 
 export default function HistoryScreen() {
-  const { width } = useWindowDimensions()
+  const c = useTheme()
+  const s = useMemo(() => makeStyles(c), [c])
+
   const today = new Date()
   const [viewYear, setViewYear] = useState(today.getFullYear())
-  const [viewMonth, setViewMonth] = useState(today.getMonth()) // 0-indexed
+  const [viewMonth, setViewMonth] = useState(today.getMonth())
   const [selected, setSelected] = useState(todayISO())
   const [meals, setMeals] = useState<Meal[]>([])
   const [loading, setLoading] = useState(true)
@@ -35,9 +38,12 @@ export default function HistoryScreen() {
   async function fetchMeals(date: string) {
     setLoading(true)
     setFetchError(null)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setLoading(false); return }
     const { data, error } = await supabase
       .from('meals')
       .select('id, name, calories')
+      .eq('user_id', user.id)
       .eq('date', date)
       .order('created_at', { ascending: true })
 
@@ -102,14 +108,12 @@ export default function HistoryScreen() {
     ...Array(firstDayOfWeek).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ]
-  // Pad to full weeks
   while (cells.length % 7 !== 0) cells.push(null)
 
   const weeks: (number | null)[][] = []
   for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
 
   const todayStr = todayISO()
-  const cellSize = Math.floor((width - 40) / 7)
 
   const selectedLabel = new Date(
     Number(selected.slice(0, 4)),
@@ -118,45 +122,45 @@ export default function HistoryScreen() {
   ).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+    <ScrollView style={s.scroll} contentContainerStyle={s.content}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>History</Text>
+      <View style={s.header}>
+        <Text style={s.title}>History</Text>
         <TouchableOpacity
-          style={styles.addButton}
+          style={s.addButton}
           onPress={() => router.push('/add-meal')}
           accessibilityLabel="Add meal"
         >
-          <Text style={styles.addButtonText}>Add Meal</Text>
+          <Text style={s.addButtonText}>Add Meal</Text>
         </TouchableOpacity>
       </View>
 
       {/* Calendar */}
-      <View style={styles.card}>
+      <View style={s.card}>
         {/* Month nav */}
-        <View style={styles.monthRow}>
+        <View style={s.monthRow}>
           <TouchableOpacity onPress={prevMonth} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Feather name="chevron-left" size={20} color="#a1a1aa" />
+            <Feather name="chevron-left" size={20} color={c.textLabel} />
           </TouchableOpacity>
-          <Text style={styles.monthLabel}>{monthLabel}</Text>
+          <Text style={s.monthLabel}>{monthLabel}</Text>
           <TouchableOpacity onPress={nextMonth} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Feather name="chevron-right" size={20} color="#a1a1aa" />
+            <Feather name="chevron-right" size={20} color={c.textLabel} />
           </TouchableOpacity>
         </View>
 
         {/* Weekday headers */}
-        <View style={styles.weekdayRow}>
+        <View style={s.weekdayRow}>
           {WEEKDAYS.map(d => (
-            <Text key={d} style={[styles.weekdayLabel, { width: cellSize }]}>{d}</Text>
+            <Text key={d} style={s.weekdayLabel}>{d}</Text>
           ))}
         </View>
 
         {/* Day grid */}
         {weeks.map((week, wi) => (
-          <View key={wi} style={styles.weekRow}>
+          <View key={wi} style={s.weekRow}>
             {week.map((day, di) => {
               if (day === null) {
-                return <View key={di} style={{ width: cellSize, height: cellSize }} />
+                return <View key={di} style={s.emptyCell} />
               }
               const iso = toISO(viewYear, viewMonth + 1, day)
               const isSelected = iso === selected
@@ -167,16 +171,15 @@ export default function HistoryScreen() {
                   key={di}
                   onPress={() => handleSelectDate(iso)}
                   style={[
-                    styles.dayCell,
-                    { width: cellSize, height: cellSize },
-                    isSelected && styles.selectedDay,
-                    !isSelected && isToday && styles.todayDay,
+                    s.dayCell,
+                    isSelected && s.selectedDay,
+                    !isSelected && isToday && s.todayDay,
                   ]}
                 >
                   <Text style={[
-                    styles.dayText,
-                    isSelected && styles.selectedDayText,
-                    !isSelected && isToday && styles.todayDayText,
+                    s.dayText,
+                    isSelected && s.selectedDayText,
+                    !isSelected && isToday && s.todayDayText,
                   ]}>
                     {day}
                   </Text>
@@ -188,41 +191,41 @@ export default function HistoryScreen() {
       </View>
 
       {/* Meals for selected date */}
-      <View style={styles.mealsSection}>
-        <Text style={styles.sectionLabel}>{selectedLabel}</Text>
+      <View style={s.mealsSection}>
+        <Text style={s.sectionLabel}>{selectedLabel}</Text>
 
         {loading ? (
-          <View style={styles.placeholder}>
-            <ActivityIndicator color="#a1a1aa" />
+          <View style={s.placeholder}>
+            <ActivityIndicator color={c.textLabel} />
           </View>
         ) : fetchError ? (
-          <View style={styles.placeholder}>
-            <Text style={styles.placeholderText}>{fetchError}</Text>
+          <View style={s.placeholder}>
+            <Text style={s.placeholderText}>{fetchError}</Text>
             <TouchableOpacity
               onPress={() => setFetchTick(t => t + 1)}
-              style={styles.retryButton}
+              style={s.retryButton}
             >
-              <Text style={styles.retryText}>Retry</Text>
+              <Text style={s.retryText}>Retry</Text>
             </TouchableOpacity>
           </View>
         ) : meals.length === 0 ? (
-          <View style={styles.placeholder}>
-            <Text style={styles.placeholderText}>No meals logged</Text>
+          <View style={s.placeholder}>
+            <Text style={s.placeholderText}>No meals logged</Text>
           </View>
         ) : (
-          <View style={styles.mealList}>
-            {deleteError && <Text style={styles.errorText}>{deleteError}</Text>}
+          <View style={s.mealList}>
+            {deleteError && <Text style={s.errorText}>{deleteError}</Text>}
             {meals.map(meal => (
-              <View key={meal.id} style={styles.mealCard}>
-                <Text style={styles.mealName} numberOfLines={1}>{meal.name}</Text>
-                <View style={styles.mealRight}>
-                  <Text style={styles.mealCal}>{meal.calories} kcal</Text>
+              <View key={meal.id} style={s.mealCard}>
+                <Text style={s.mealName} numberOfLines={1}>{meal.name}</Text>
+                <View style={s.mealRight}>
+                  <Text style={s.mealCal}>{meal.calories} kcal</Text>
                   <TouchableOpacity
                     onPress={() => handleDelete(meal.id)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     accessibilityLabel={`Delete ${meal.name}`}
                   >
-                    <Feather name="trash-2" size={15} color="#d4d4d8" />
+                    <Feather name="trash-2" size={15} color={c.iconMuted} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -234,76 +237,78 @@ export default function HistoryScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: '#fafafa' },
-  content: { paddingHorizontal: 20, paddingBottom: 32 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'ios' ? 56 : 32,
-    marginBottom: 20,
-  },
-  title: { fontSize: 28, fontWeight: '700', color: '#18181b' },
-  addButton: {
-    backgroundColor: '#18181b', borderRadius: 12,
-    paddingHorizontal: 16, paddingVertical: 9,
-  },
-  addButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  card: {
-    backgroundColor: '#fff', borderRadius: 20, padding: 16,
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 }, elevation: 1, marginBottom: 20,
-  },
-  monthRow: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', marginBottom: 12,
-  },
-  monthLabel: { fontSize: 14, fontWeight: '600', color: '#18181b' },
-  weekdayRow: { flexDirection: 'row', marginBottom: 4 },
-  weekdayLabel: {
-    textAlign: 'center', fontSize: 10,
-    fontWeight: '500', color: '#a1a1aa',
-  },
-  weekRow: { flexDirection: 'row' },
-  dayCell: {
-    alignItems: 'center', justifyContent: 'center',
-    borderRadius: 100,
-  },
-  selectedDay: { backgroundColor: '#18181b' },
-  todayDay: {
-    borderWidth: 1, borderColor: '#d4d4d8',
-  },
-  dayText: { fontSize: 14, color: '#52525b' },
-  selectedDayText: { color: '#fff', fontWeight: '600' },
-  todayDayText: { fontWeight: '700', color: '#18181b' },
-  mealsSection: { gap: 8 },
-  sectionLabel: {
-    fontSize: 10, fontWeight: '600', color: '#a1a1aa',
-    letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4,
-  },
-  placeholder: {
-    backgroundColor: '#fff', borderRadius: 16, height: 96,
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 }, elevation: 1,
-  },
-  placeholderText: { fontSize: 14, color: '#a1a1aa' },
-  retryButton: {
-    marginTop: 10, backgroundColor: '#18181b',
-    borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8,
-  },
-  retryText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  mealList: { gap: 8 },
-  errorText: { fontSize: 12, color: '#ef4444' },
-  mealCard: {
-    backgroundColor: '#fff', borderRadius: 16,
-    paddingHorizontal: 16, paddingVertical: 14,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 }, elevation: 1,
-  },
-  mealName: { fontSize: 14, fontWeight: '500', color: '#27272a', flex: 1, marginRight: 12 },
-  mealRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  mealCal: { fontSize: 14, color: '#71717a', fontVariant: ['tabular-nums'] },
-})
+function makeStyles(c: AppColors) {
+  return StyleSheet.create({
+    scroll: { flex: 1, backgroundColor: c.pageBg },
+    content: { paddingHorizontal: 20, paddingBottom: 32 },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingTop: Platform.OS === 'ios' ? 56 : 32,
+      marginBottom: 20,
+    },
+    title: { fontSize: 28, fontWeight: '700', color: c.textPrimary },
+    addButton: {
+      backgroundColor: c.primaryBg, borderRadius: 12,
+      paddingHorizontal: 16, paddingVertical: 9,
+    },
+    addButtonText: { color: c.primaryText, fontSize: 14, fontWeight: '600' },
+    card: {
+      backgroundColor: c.cardBg, borderRadius: 20, padding: 16,
+      shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4,
+      shadowOffset: { width: 0, height: 1 }, elevation: 1, marginBottom: 20,
+    },
+    monthRow: {
+      flexDirection: 'row', alignItems: 'center',
+      justifyContent: 'space-between', marginBottom: 12,
+    },
+    monthLabel: { fontSize: 14, fontWeight: '600', color: c.textPrimary },
+    weekdayRow: { flexDirection: 'row', marginBottom: 4 },
+    weekdayLabel: {
+      flex: 1, textAlign: 'center', fontSize: 10,
+      fontWeight: '500', color: c.textLabel,
+    },
+    weekRow: { flexDirection: 'row' },
+    emptyCell: { flex: 1, aspectRatio: 1 },
+    dayCell: {
+      flex: 1, aspectRatio: 1,
+      alignItems: 'center', justifyContent: 'center',
+      borderRadius: 100,
+    },
+    selectedDay: { backgroundColor: c.primaryBg },
+    todayDay: { borderWidth: 1, borderColor: c.borderInput },
+    dayText: { fontSize: 14, color: c.textSecondary },
+    selectedDayText: { color: c.primaryText, fontWeight: '600' },
+    todayDayText: { fontWeight: '700', color: c.textPrimary },
+    mealsSection: { gap: 8 },
+    sectionLabel: {
+      fontSize: 10, fontWeight: '600', color: c.textLabel,
+      letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4,
+    },
+    placeholder: {
+      backgroundColor: c.cardBg, borderRadius: 16, height: 96,
+      alignItems: 'center', justifyContent: 'center',
+      shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4,
+      shadowOffset: { width: 0, height: 1 }, elevation: 1,
+    },
+    placeholderText: { fontSize: 14, color: c.textLabel },
+    retryButton: {
+      marginTop: 10, backgroundColor: c.primaryBg,
+      borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8,
+    },
+    retryText: { color: c.primaryText, fontSize: 14, fontWeight: '600' },
+    mealList: { gap: 8 },
+    errorText: { fontSize: 12, color: c.error },
+    mealCard: {
+      backgroundColor: c.cardBg, borderRadius: 16,
+      paddingHorizontal: 16, paddingVertical: 14,
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4,
+      shadowOffset: { width: 0, height: 1 }, elevation: 1,
+    },
+    mealName: { fontSize: 14, fontWeight: '500', color: c.textSecondary, flex: 1, marginRight: 12 },
+    mealRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    mealCal: { fontSize: 14, color: c.textMuted, fontVariant: ['tabular-nums'] },
+  })
+}

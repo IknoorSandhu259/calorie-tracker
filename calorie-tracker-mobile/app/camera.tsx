@@ -1,10 +1,9 @@
-import { useCallback, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   View, Text, TouchableOpacity, Image,
   StyleSheet, ActivityIndicator, Platform, SafeAreaView,
 } from 'react-native'
 import { CameraView, useCameraPermissions } from 'expo-camera'
-import * as FileSystem from 'expo-file-system'
 import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import { analyzeFood, type FoodAnalysis } from '../lib/analyzeFood'
@@ -22,6 +21,14 @@ export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions()
   const cameraRef = useRef<CameraView>(null)
 
+  // Track whether the native camera session is ready to accept takePictureAsync calls.
+  // CameraView's internal ref uses optional chaining and returns undefined (silently)
+  // if the native session hasn't started yet — the onCameraReady callback is the
+  // authoritative signal that the session is open.
+  const [cameraReady, setCameraReady] = useState(false)
+  const [capturing, setCapturing] = useState(false)
+  const [captureError, setCaptureError] = useState<string | null>(null)
+
   const [screen, setScreen] = useState<Screen>('camera')
   const [capturedUri, setCapturedUri] = useState<string | null>(null)
   const [capturedBase64, setCapturedBase64] = useState<string | null>(null)
@@ -34,19 +41,29 @@ export default function CameraScreen() {
   const [saveError, setSaveError] = useState<string | null>(null)
 
   async function handleCapture() {
-    if (!cameraRef.current) return
+    if (!cameraRef.current || !cameraReady || capturing) return
+    setCapturing(true)
+    setCaptureError(null)
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.92 })
-      if (!photo?.uri) return
-      // Read as base64 for Gemini
-      const base64 = await FileSystem.readAsStringAsync(photo.uri, {
-        encoding: FileSystem.EncodingType.Base64,
+      // Request base64 directly — avoids a separate FileSystem.readAsStringAsync
+      // call and eliminates any file-path timing issues on Android.
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.7,
+        base64: true,
       })
+      if (!photo?.uri || !photo.base64) {
+        setCaptureError('Could not capture photo. Please try again.')
+        return
+      }
       setCapturedUri(photo.uri)
-      setCapturedBase64(base64)
+      setCapturedBase64(photo.base64)
       setScreen('preview')
-    } catch {
-      // Camera not ready — ignore
+    } catch (err) {
+      setCaptureError(
+        err instanceof Error ? err.message : 'Capture failed. Please try again.'
+      )
+    } finally {
+      setCapturing(false)
     }
   }
 
@@ -59,6 +76,7 @@ export default function CameraScreen() {
     setAnalysisError(null)
     setSaving(false)
     setSaveError(null)
+    setCaptureError(null)
   }
 
   async function handleAnalyze() {
@@ -101,12 +119,10 @@ export default function CameraScreen() {
     }
   }
 
-  // Permission loading
   if (!permission) {
     return <View style={styles.container} />
   }
 
-  // Permission denied
   if (!permission.granted) {
     return (
       <View style={[styles.container, styles.permissionScreen]}>
@@ -145,7 +161,13 @@ export default function CameraScreen() {
       {/* Viewfinder / preview */}
       <View style={styles.viewfinder}>
         {screen === 'camera' ? (
-          <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" />
+          <CameraView
+            ref={cameraRef}
+            style={StyleSheet.absoluteFill}
+            facing="back"
+            onCameraReady={() => setCameraReady(true)}
+            onMountError={(e) => setCaptureError(e.message)}
+          />
         ) : capturedUri ? (
           <Image source={{ uri: capturedUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
         ) : null}
@@ -154,14 +176,37 @@ export default function CameraScreen() {
       {/* Bottom controls */}
       <SafeAreaView style={styles.controls}>
         {screen === 'camera' ? (
-          <View style={styles.captureRow}>
-            <TouchableOpacity
-              onPress={handleCapture}
-              style={styles.captureButton}
-              accessibilityLabel="Take photo"
-            >
-              <View style={styles.captureInner} />
-            </TouchableOpacity>
+          <View style={styles.cameraControls}>
+            {/* Capture error — shown above the shutter button */}
+            {captureError && (
+              <View style={styles.errorCard}>
+                <Text style={styles.errorText}>{captureError}</Text>
+              </View>
+            )}
+
+            {/* Camera initialising hint */}
+            {!cameraReady && !captureError && (
+              <View style={styles.hintRow}>
+                <ActivityIndicator size="small" color="rgba(255,255,255,0.5)" />
+                <Text style={styles.hintText}>Preparing camera…</Text>
+              </View>
+            )}
+
+            <View style={styles.captureRow}>
+              <TouchableOpacity
+                onPress={handleCapture}
+                style={[
+                  styles.captureButton,
+                  (!cameraReady || capturing) && styles.captureButtonDisabled,
+                ]}
+                disabled={!cameraReady || capturing}
+                accessibilityLabel="Take photo"
+              >
+                {capturing
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <View style={styles.captureInner} />}
+              </TouchableOpacity>
+            </View>
           </View>
         ) : (
           <View style={styles.previewControls}>
@@ -256,12 +301,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24, paddingTop: 16,
     paddingBottom: Platform.OS === 'android' ? 24 : 8,
   },
-  captureRow: { alignItems: 'center', paddingVertical: 16 },
+  cameraControls: { gap: 12 },
+  hintRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  hintText: { fontSize: 13, color: 'rgba(255,255,255,0.5)' },
+  captureRow: { alignItems: 'center', paddingVertical: 8 },
   captureButton: {
     width: 80, height: 80, borderRadius: 40,
     borderWidth: 4, borderColor: '#fff',
     alignItems: 'center', justifyContent: 'center',
   },
+  captureButtonDisabled: { opacity: 0.4 },
   captureInner: {
     width: 56, height: 56, borderRadius: 28, backgroundColor: '#fff',
   },
@@ -282,7 +333,7 @@ const styles = StyleSheet.create({
   errorCard: {
     backgroundColor: 'rgba(239,68,68,0.2)', borderRadius: 12, padding: 12,
   },
-  errorText: { fontSize: 13, color: '#fca5a5' },
+  errorText: { fontSize: 13, color: '#fca5a5', textAlign: 'center' },
   primaryButton: {
     backgroundColor: '#fff', borderRadius: 16,
     paddingVertical: 16, alignItems: 'center', justifyContent: 'center',

@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native'
 import Svg, { Circle } from 'react-native-svg'
+import { useTheme } from '../constants/colors'
 
 const RADIUS = 52
 const STROKE = 10
@@ -12,13 +13,13 @@ interface Props {
 }
 
 export default function CalorieRing({ consumed, goal }: Props) {
+  const c = useTheme()
   const progress = goal > 0 ? Math.min(consumed / goal, 1) : 0
   const dashoffset = CIRCUMFERENCE * (1 - progress)
 
   return (
     <View style={styles.wrapper}>
       <View style={styles.ring}>
-        {/* Rotated -90° so progress starts at 12 o'clock */}
         <Svg
           width={SIZE}
           height={SIZE}
@@ -27,35 +28,28 @@ export default function CalorieRing({ consumed, goal }: Props) {
         >
           {/* Track */}
           <Circle
-            cx="62"
-            cy="62"
-            r={RADIUS}
-            fill="none"
-            stroke="#e4e4e7"
-            strokeWidth={STROKE}
+            cx="62" cy="62" r={RADIUS}
+            fill="none" stroke={c.border} strokeWidth={STROKE}
           />
           {/* Progress fill */}
           <Circle
-            cx="62"
-            cy="62"
-            r={RADIUS}
-            fill="none"
-            stroke="#18181b"
-            strokeWidth={STROKE}
+            cx="62" cy="62" r={RADIUS}
+            fill="none" stroke={c.chartLine} strokeWidth={STROKE}
             strokeLinecap="round"
             strokeDasharray={`${CIRCUMFERENCE} ${CIRCUMFERENCE}`}
             strokeDashoffset={dashoffset}
           />
         </Svg>
 
-        {/* Centre label */}
         <View style={styles.centre}>
-          <Text style={styles.number}>{consumed.toLocaleString()}</Text>
-          <Text style={styles.unit}>kcal</Text>
+          <Text style={[styles.number, { color: c.textPrimary }]}>
+            {consumed.toLocaleString()}
+          </Text>
+          <Text style={[styles.unit, { color: c.textMuted }]}>kcal</Text>
         </View>
       </View>
 
-      <Text style={styles.subtext}>
+      <Text style={[styles.subtext, { color: c.textMuted }]}>
         {consumed.toLocaleString()} / {goal.toLocaleString()} kcal
       </Text>
     </View>
@@ -63,36 +57,11 @@ export default function CalorieRing({ consumed, goal }: Props) {
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    alignItems: 'center',
-    gap: 12,
-  },
-  ring: {
-    width: SIZE,
-    height: SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  svg: {
-    position: 'absolute',
-    transform: [{ rotate: '-90deg' }],
-  },
-  centre: {
-    alignItems: 'center',
-  },
-  number: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#18181b',
-    lineHeight: 30,
-  },
-  unit: {
-    fontSize: 12,
-    color: '#71717a',
-    marginTop: 2,
-  },
-  subtext: {
-    fontSize: 14,
-    color: '#71717a',
-  },
+  wrapper: { alignItems: 'center', gap: 12 },
+  ring: { width: SIZE, height: SIZE, alignItems: 'center', justifyContent: 'center' },
+  svg: { position: 'absolute', transform: [{ rotate: '-90deg' }] },
+  centre: { alignItems: 'center' },
+  number: { fontSize: 26, fontWeight: '700', lineHeight: 30 },
+  unit: { fontSize: 12, marginTop: 2 },
+  subtext: { fontSize: 14 },
 })

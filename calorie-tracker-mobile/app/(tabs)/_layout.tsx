@@ -1,15 +1,24 @@
 import { Pressable, View, StyleSheet, Platform } from 'react-native'
 import { Tabs, router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
+import { useTheme } from '../../constants/colors'
 
 export default function TabsLayout() {
+  const c = useTheme()
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: '#18181b',
-        tabBarInactiveTintColor: '#a1a1aa',
+        tabBarStyle: {
+          backgroundColor: c.tabBg,
+          borderTopColor: c.tabBorder,
+          borderTopWidth: 1,
+          height: Platform.OS === 'ios' ? 88 : 64,
+          paddingBottom: Platform.OS === 'ios' ? 28 : 8,
+        },
+        tabBarActiveTintColor: c.textPrimary,
+        tabBarInactiveTintColor: c.textLabel,
         tabBarLabelStyle: { fontSize: 10, fontWeight: '500' },
       }}
     >
@@ -21,10 +30,10 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="history"
+        name="progress"
         options={{
-          title: 'History',
-          tabBarIcon: ({ color }) => <Feather name="clock" size={22} color={color} />,
+          title: 'Progress',
+          tabBarIcon: ({ color }) => <Feather name="bar-chart-2" size={22} color={color} />,
         }}
       />
       {/* Centre camera button — navigates to the /camera fullscreen modal */}
@@ -40,18 +49,18 @@ export default function TabsLayout() {
               accessibilityLabel="Log food with camera"
               accessibilityRole="button"
             >
-              <View style={styles.cameraInner}>
-                <Feather name="plus" size={24} color="#fff" />
+              <View style={[styles.cameraInner, { backgroundColor: c.primaryBg }]}>
+                <Feather name="plus" size={24} color={c.primaryText} />
               </View>
             </Pressable>
           ),
         }}
       />
       <Tabs.Screen
-        name="progress"
+        name="history"
         options={{
-          title: 'Progress',
-          tabBarIcon: ({ color }) => <Feather name="bar-chart-2" size={22} color={color} />,
+          title: 'History',
+          tabBarIcon: ({ color }) => <Feather name="clock" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -66,13 +75,6 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
-  tabBar: {
-    backgroundColor: '#fff',
-    borderTopColor: '#f4f4f5',
-    borderTopWidth: 1,
-    height: Platform.OS === 'ios' ? 88 : 64,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 8,
-  },
   cameraOuter: {
     flex: 1,
     alignItems: 'center',
@@ -82,7 +84,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#18181b',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Platform.OS === 'ios' ? 20 : 6,
