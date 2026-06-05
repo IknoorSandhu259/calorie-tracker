@@ -62,7 +62,7 @@ export const darkColors = {
   iconMuted: '#52525b',
 } as const
 
-export type AppColors = typeof lightColors
+export type AppColors =  | typeof lightColors  | typeof darkColors
 
 export function useTheme(): AppColors {
   const scheme = useColorScheme()

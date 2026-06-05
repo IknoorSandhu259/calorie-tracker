@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 
-type Point = { date: string; weight: number }
+type Point = { date: string; weight: number | null }
 
 function useDarkMode() {
   const [dark, setDark] = useState(false)
