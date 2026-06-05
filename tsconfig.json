@@ -39,6 +39,5 @@
   "exclude": [
     "node_modules",
     "calorie-tracker-mobile"
-  ],
-  "extends": "expo/tsconfig.base"
+  ]
 }
