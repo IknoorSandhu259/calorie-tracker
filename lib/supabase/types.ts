@@ -1,3 +1,35 @@
+export type ProfileRow = {
+  id: string
+  daily_kcal_target: number
+  daily_protein_g: number
+  daily_carbs_g: number
+  daily_fat_g: number
+  onboarding_completed: boolean
+  age: number | null
+  sex: 'male' | 'female' | 'other' | null
+  height_cm: number | null
+  weight_kg: number | null
+  goal_type: 'lose' | 'maintain' | 'gain' | null
+  activity_level: 'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | 'extra_active' | null
+  goal_pace: 'slow' | 'moderate' | 'fast' | null
+  updated_at: string
+}
+
+export type ProfileUpdate = {
+  daily_kcal_target?: number
+  daily_protein_g?: number
+  daily_carbs_g?: number
+  daily_fat_g?: number
+  onboarding_completed?: boolean
+  age?: number | null
+  sex?: 'male' | 'female' | 'other' | null
+  height_cm?: number | null
+  weight_kg?: number | null
+  goal_type?: 'lose' | 'maintain' | 'gain' | null
+  activity_level?: 'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | 'extra_active' | null
+  goal_pace?: 'slow' | 'moderate' | 'fast' | null
+}
+
 export type MealRow = {
   id: string
   user_id: string
@@ -37,6 +69,12 @@ export type WeightLogInsert = Omit<WeightLogRow, 'id' | 'created_at'> & {
 export type Database = {
   public: {
     Tables: {
+      profiles: {
+        Row: ProfileRow
+        Insert: Pick<ProfileRow, 'id'> & Partial<ProfileUpdate>
+        Update: ProfileUpdate
+        Relationships: []
+      }
       meals: {
         Row: MealRow
         Insert: MealInsert

@@ -4,17 +4,25 @@ import {
   RefreshControl, StyleSheet, ActivityIndicator, Platform,
 } from 'react-native'
 import { useFocusEffect, router } from 'expo-router'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Feather } from '@expo/vector-icons'
 import { supabase } from '../../lib/supabase'
 import CalorieRing from '../../components/CalorieRing'
+import MacroRing from '../../components/MacroRing'
 import WeightLogModal from '../../components/WeightLogModal'
+import { DEFAULT_GOALS, type GoalSet } from '../../lib/goals'
 import { useTheme, type AppColors } from '../../constants/colors'
 
-const CALORIE_GOAL_KEY = 'calorie_goal'
-const DEFAULT_GOAL = 2000
+// Fixed accent colors — same as web
+const MACRO_COLORS = { protein: '#3b82f6', carbs: '#f59e0b', fat: '#f97316' }
 
-type Meal = { id: string; name: string; calories: number }
+type Meal = {
+  id: string
+  name: string
+  calories: number
+  protein: number | null
+  carbs: number | null
+  fat: number | null
+}
 
 function todayISO(): string {
   const d = new Date()
@@ -27,51 +35,66 @@ function todayLabel(): string {
   })
 }
 
+async function fetchGoals(userId: string): Promise<GoalSet> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('daily_kcal_target, daily_protein_g, daily_carbs_g, daily_fat_g')
+    .eq('id', userId)
+    .single()
+
+  if (!data) return DEFAULT_GOALS
+  return {
+    calories: data.daily_kcal_target,
+    protein: data.daily_protein_g,
+    carbs: data.daily_carbs_g,
+    fat: data.daily_fat_g,
+  }
+}
+
 export default function HomeScreen() {
   const c = useTheme()
   const s = useMemo(() => makeStyles(c), [c])
 
   const [meals, setMeals] = useState<Meal[]>([])
-  const [goal, setGoal] = useState(DEFAULT_GOAL)
+  const [goals, setGoals] = useState<GoalSet>(DEFAULT_GOALS)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [showWeightModal, setShowWeightModal] = useState(false)
 
-  const totalCalories = meals.reduce((sum, m) => sum + m.calories, 0)
+  const totalCalories = meals.reduce((sum, m) => sum + (m.calories ?? 0), 0)
+  const totalProtein = meals.reduce((sum, m) => sum + (m.protein ?? 0), 0)
+  const totalCarbs = meals.reduce((sum, m) => sum + (m.carbs ?? 0), 0)
+  const totalFat = meals.reduce((sum, m) => sum + (m.fat ?? 0), 0)
 
   async function loadData() {
-    const [{ data: { user } }, stored] = await Promise.all([
-      supabase.auth.getUser(),
-      AsyncStorage.getItem(CALORIE_GOAL_KEY),
-    ])
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    if (stored) {
-      const n = Number(stored)
-      if (Number.isFinite(n) && n > 0) setGoal(n)
-    }
+    const [fetchedGoals, { data: mealData }] = await Promise.all([
+      fetchGoals(user.id),
+      supabase
+        .from('meals')
+        .select('id, name, calories, protein, carbs, fat')
+        .eq('user_id', user.id)
+        .eq('date', todayISO())
+        .order('created_at', { ascending: true }),
+    ])
 
-    const { data } = await supabase
-      .from('meals')
-      .select('id, name, calories')
-      .eq('user_id', user.id)
-      .eq('date', todayISO())
-      .order('created_at', { ascending: true })
-
-    setMeals(data ?? [])
+    setGoals(fetchedGoals)
+    setMeals(mealData ?? [])
   }
 
   useFocusEffect(
     useCallback(() => {
       setLoading(true)
       loadData().finally(() => setLoading(false))
-    }, [])
+    }, []),
   )
 
-  async function handleDelete(id: string, name: string) {
+  async function handleDelete(id: string) {
     const snapshot = meals
-    setMeals(prev => prev.filter(m => m.id !== id))
+    setMeals((prev) => prev.filter((m) => m.id !== id))
     setDeleteError(null)
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -117,9 +140,16 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Calorie ring */}
+        {/* Calorie ring — primary */}
         <View style={s.ringSection}>
-          <CalorieRing consumed={totalCalories} goal={goal} />
+          <CalorieRing consumed={totalCalories} goal={goals.calories} />
+        </View>
+
+        {/* Macro rings — secondary */}
+        <View style={s.macroRow}>
+          <MacroRing label="Protein" consumed={totalProtein} goal={goals.protein} color={MACRO_COLORS.protein} />
+          <MacroRing label="Carbs" consumed={totalCarbs} goal={goals.carbs} color={MACRO_COLORS.carbs} />
+          <MacroRing label="Fat" consumed={totalFat} goal={goals.fat} color={MACRO_COLORS.fat} />
         </View>
 
         {/* Divider */}
@@ -140,13 +170,13 @@ export default function HomeScreen() {
               <Text style={s.placeholderText}>No meals logged today</Text>
             </View>
           ) : (
-            meals.map(meal => (
+            meals.map((meal) => (
               <View key={meal.id} style={s.mealCard}>
                 <Text style={s.mealName} numberOfLines={1}>{meal.name}</Text>
                 <View style={s.mealRight}>
                   <Text style={s.mealCal}>{meal.calories} kcal</Text>
                   <TouchableOpacity
-                    onPress={() => handleDelete(meal.id, meal.name)}
+                    onPress={() => handleDelete(meal.id)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     accessibilityLabel={`Delete ${meal.name}`}
                   >
@@ -159,7 +189,6 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      {/* Floating Log Weight button — mirrors the web app's fixed button */}
       <TouchableOpacity
         style={s.logWeightButton}
         onPress={() => setShowWeightModal(true)}
@@ -184,8 +213,7 @@ function makeStyles(c: AppColors) {
     scroll: { flex: 1 },
     content: { paddingBottom: 120 },
     header: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
+      flexDirection: 'row', alignItems: 'flex-start',
       justifyContent: 'space-between',
       paddingHorizontal: 20,
       paddingTop: Platform.OS === 'ios' ? 56 : 32,
@@ -201,7 +229,11 @@ function makeStyles(c: AppColors) {
       paddingHorizontal: 16, paddingVertical: 9, marginTop: 6,
     },
     addButtonText: { color: c.primaryText, fontSize: 14, fontWeight: '600' },
-    ringSection: { alignItems: 'center', paddingVertical: 32 },
+    ringSection: { alignItems: 'center', paddingTop: 32, paddingBottom: 20 },
+    macroRow: {
+      flexDirection: 'row', justifyContent: 'center',
+      gap: 32, paddingBottom: 24,
+    },
     divider: { height: 1, backgroundColor: c.divider, marginHorizontal: 20 },
     mealsSection: { paddingHorizontal: 20, paddingTop: 20, gap: 8 },
     sectionLabel: {
@@ -232,13 +264,9 @@ function makeStyles(c: AppColors) {
       right: 20,
       backgroundColor: c.primaryBg,
       borderRadius: 24,
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-      shadowColor: '#000',
-      shadowOpacity: 0.2,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 4,
+      paddingHorizontal: 20, paddingVertical: 12,
+      shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8,
+      shadowOffset: { width: 0, height: 2 }, elevation: 4,
     },
     logWeightText: { color: c.primaryText, fontSize: 14, fontWeight: '600' },
   })

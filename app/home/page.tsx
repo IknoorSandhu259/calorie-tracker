@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import LogWeightButton from '@/components/LogWeightButton'
 import HomeMeals from '@/components/HomeMeals'
 import AddMealButton from '@/components/AddMealButton'
+import { getProfileGoals } from '@/lib/actions/profile'
 import type { HomeMeal } from '@/lib/supabase/types'
 
 function todayLabel(): string {
@@ -32,12 +33,15 @@ export default async function HomePage() {
 
   const today = todayISO()
 
-  const { data: meals, error: mealsError } = await supabase
-    .from('meals')
-    .select('id, name, calories, protein, carbs, fat, created_at')
-    .eq('user_id', user.id)
-    .eq('date', today)
-    .order('created_at', { ascending: true })
+  const [{ data: meals, error: mealsError }, goals] = await Promise.all([
+    supabase
+      .from('meals')
+      .select('id, name, calories, protein, carbs, fat, created_at')
+      .eq('user_id', user.id)
+      .eq('date', today)
+      .order('created_at', { ascending: true }),
+    getProfileGoals(),
+  ])
 
   const mealList: HomeMeal[] = meals ?? []
 
@@ -69,7 +73,7 @@ export default async function HomePage() {
           </form>
         </section>
       ) : (
-        <HomeMeals initialMeals={mealList} goal={2000} />
+        <HomeMeals initialMeals={mealList} goals={goals} />
       )}
 
       <LogWeightButton />

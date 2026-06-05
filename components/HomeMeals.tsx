@@ -1,29 +1,74 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { deleteMeal } from '@/lib/actions/meal'
 import CalorieRing from '@/components/CalorieRing'
-import { CALORIE_GOAL_KEY, DEFAULT_CALORIE_GOAL } from '@/components/ProfileView'
 import type { HomeMeal } from '@/lib/supabase/types'
+import type { GoalSet } from '@/lib/actions/profile'
+
+const MACRO_RING_RADIUS = 28
+const MACRO_RING_STROKE = 6
+const MACRO_RING_CIRCUMFERENCE = 2 * Math.PI * MACRO_RING_RADIUS
+
+function MacroRing({
+  label,
+  consumed,
+  goal,
+  colorClass,
+}: {
+  label: string
+  consumed: number
+  goal: number
+  colorClass: string
+}) {
+  const progress = goal > 0 ? Math.min(consumed / goal, 1) : 0
+  const dashoffset = MACRO_RING_CIRCUMFERENCE * (1 - progress)
+  const display = Math.round(consumed)
+
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="relative h-[72px] w-[72px]">
+        <svg viewBox="0 0 70 70" className="h-full w-full -rotate-90" aria-hidden="true">
+          <circle
+            cx="35" cy="35" r={MACRO_RING_RADIUS}
+            fill="none" stroke="currentColor" strokeWidth={MACRO_RING_STROKE}
+            className="text-zinc-200"
+          />
+          <circle
+            cx="35" cy="35" r={MACRO_RING_RADIUS}
+            fill="none" stroke="currentColor" strokeWidth={MACRO_RING_STROKE}
+            strokeLinecap="round"
+            strokeDasharray={MACRO_RING_CIRCUMFERENCE}
+            strokeDashoffset={dashoffset}
+            style={{ transition: 'stroke-dashoffset 0.4s ease' }}
+            className={colorClass}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-[11px] font-bold leading-none text-zinc-900">{display}</span>
+          <span className="text-[9px] text-zinc-500">g</span>
+        </div>
+      </div>
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">{label}</p>
+      <p className="text-[10px] text-zinc-400">{display}/{goal}g</p>
+    </div>
+  )
+}
 
 export default function HomeMeals({
   initialMeals,
-  goal,
+  goals,
 }: {
   initialMeals: HomeMeal[]
-  goal: number
+  goals: GoalSet
 }) {
   const [meals, setMeals] = useState(initialMeals)
   const [error, setError] = useState<string | null>(null)
-  const [effectiveGoal, setEffectiveGoal] = useState(goal)
-
-  useEffect(() => {
-    const stored = localStorage.getItem(CALORIE_GOAL_KEY)
-    const n = Number(stored)
-    if (stored && Number.isFinite(n) && n > 0) setEffectiveGoal(n)
-  }, [])
 
   const totalCalories = meals.reduce((sum, m) => sum + (m.calories ?? 0), 0)
+  const totalProtein = meals.reduce((sum, m) => sum + (m.protein ?? 0), 0)
+  const totalCarbs = meals.reduce((sum, m) => sum + (m.carbs ?? 0), 0)
+  const totalFat = meals.reduce((sum, m) => sum + (m.fat ?? 0), 0)
 
   async function handleDelete(id: string) {
     const snapshot = meals
@@ -38,8 +83,29 @@ export default function HomeMeals({
 
   return (
     <>
-      <section className="flex justify-center py-8">
-        <CalorieRing consumed={totalCalories} goal={effectiveGoal} />
+      <section className="flex flex-col items-center gap-6 py-8">
+        <CalorieRing consumed={totalCalories} goal={goals.calories} />
+
+        <div className="flex gap-8">
+          <MacroRing
+            label="Protein"
+            consumed={totalProtein}
+            goal={goals.protein}
+            colorClass="text-blue-500"
+          />
+          <MacroRing
+            label="Carbs"
+            consumed={totalCarbs}
+            goal={goals.carbs}
+            colorClass="text-amber-500"
+          />
+          <MacroRing
+            label="Fat"
+            consumed={totalFat}
+            goal={goals.fat}
+            colorClass="text-orange-500"
+          />
+        </div>
       </section>
 
       <div className="mx-5 h-px bg-zinc-200" />

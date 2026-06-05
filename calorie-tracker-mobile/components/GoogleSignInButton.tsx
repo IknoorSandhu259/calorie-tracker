@@ -1,17 +1,14 @@
 import { useMemo, useState } from 'react'
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native'
 import * as WebBrowser from 'expo-web-browser'
+import * as Linking from 'expo-linking'
 import Svg, { Path } from 'react-native-svg'
 import { supabase } from '../lib/supabase'
 import { useTheme, type AppColors } from '../constants/colors'
 
-// Required for iOS to close the browser automatically after OAuth completes.
-WebBrowser.maybeCompleteAuthSession()
-
-// Deep-link the Supabase OAuth callback returns to after Google authentication.
-// Must match an entry in your Supabase project → Authentication → URL Configuration
-// → Redirect URLs: calorietrackermobile://auth/callback
-const OAUTH_REDIRECT = 'calorietrackermobile://auth/callback'
+// NOTE: maybeCompleteAuthSession() is only needed for the useAuthRequest/AuthSession
+// proxy pattern. It is NOT needed here — openAuthSessionAsync returns the result
+// directly as an async value, so no module-level call is required.
 
 function GoogleLogo() {
   return (
@@ -28,52 +25,76 @@ export default function GoogleSignInButton() {
   const c = useTheme()
   const s = useMemo(() => makeStyles(c), [c])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handlePress() {
     setLoading(true)
+    setError(null)
 
-    const { data, error } = await supabase.auth.signInWithOAuth({
+    // Linking.createURL resolves to the correct scheme for each runtime:
+    //   Development build / production → calorietrackermobile://auth/callback
+    //   Expo Go                        → exp://127.0.0.1:<port>/--/auth/callback
+    // The hardcoded 'calorietrackermobile://' scheme is not registered in Expo Go,
+    // which causes iOS ASWebAuthenticationSession to reject the session immediately
+    // (before Google's account picker appears) and causes Android Custom Tabs to
+    // fail to return the callback. Use a development build for reliable OAuth.
+    const redirectUrl = Linking.createURL('auth/callback')
+
+    const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: OAUTH_REDIRECT,
+        redirectTo: redirectUrl,
         skipBrowserRedirect: true,
       },
     })
 
-    if (error || !data.url) {
+    if (oauthError || !data.url) {
+      setError(oauthError?.message ?? 'Could not start Google sign-in.')
       setLoading(false)
       return
     }
 
-    const result = await WebBrowser.openAuthSessionAsync(data.url, OAUTH_REDIRECT)
+    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl)
 
     if (result.type === 'success') {
-      // result.url is the full callback URL containing the PKCE code;
-      // exchangeCodeForSession trades it for a session.
-      // onAuthStateChange in _layout.tsx handles navigation once the session is live.
-      await supabase.auth.exchangeCodeForSession(result.url)
+      // result.url holds the deep-link with the PKCE code.
+      // exchangeCodeForSession exchanges it for a session;
+      // onAuthStateChange in _layout.tsx then handles navigation.
+      const { error: sessionError } = await supabase.auth.exchangeCodeForSession(result.url)
+      if (sessionError) {
+        setError('Sign-in failed. Please try again.')
+      }
+    } else if (result.type === 'cancel' || result.type === 'dismiss') {
+      // User closed the browser — not an error, just reset state.
     }
 
     setLoading(false)
   }
 
   return (
-    <TouchableOpacity
-      style={[s.button, loading && s.disabled]}
-      onPress={handlePress}
-      disabled={loading}
-      accessibilityRole="button"
-      accessibilityLabel="Continue with Google"
-    >
-      {loading ? (
-        <ActivityIndicator size="small" color={c.textMuted} />
-      ) : (
-        <>
-          <GoogleLogo />
-          <Text style={s.label}>Continue with Google</Text>
-        </>
+    <>
+      {error && (
+        <Text style={{ color: '#ef4444', fontSize: 13, textAlign: 'center', marginBottom: 8 }}>
+          {error}
+        </Text>
       )}
-    </TouchableOpacity>
+      <TouchableOpacity
+        style={[s.button, loading && s.disabled]}
+        onPress={handlePress}
+        disabled={loading}
+        accessibilityRole="button"
+        accessibilityLabel="Continue with Google"
+      >
+        {loading ? (
+          <ActivityIndicator size="small" color={c.textMuted} />
+        ) : (
+          <>
+            <GoogleLogo />
+            <Text style={s.label}>Continue with Google</Text>
+          </>
+        )}
+      </TouchableOpacity>
+    </>
   )
 }
 

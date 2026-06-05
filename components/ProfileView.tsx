@@ -2,22 +2,33 @@
 
 import { useState, useEffect } from 'react'
 import { signOut } from '@/lib/actions/auth'
+import { updateProfileGoals } from '@/lib/actions/profile'
 import { applyTheme } from '@/components/ThemeSync'
-
-export const CALORIE_GOAL_KEY = 'calorie_goal'
-export const DEFAULT_CALORIE_GOAL = 2000
+import type { GoalSet } from '@/lib/actions/profile'
+import type { ProfileUpdate } from '@/lib/supabase/types'
 
 type Theme = 'light' | 'dark' | 'system'
 
-export default function ProfileView({ email }: { email: string }) {
-  const [goal, setGoal] = useState(String(DEFAULT_CALORIE_GOAL))
+const inputClass =
+  'w-full rounded-xl bg-zinc-50 px-3 py-2.5 text-sm text-zinc-800 outline-none ring-1 ring-transparent focus:ring-zinc-300'
+
+export default function ProfileView({
+  email,
+  initialGoals,
+}: {
+  email: string
+  initialGoals: GoalSet
+}) {
+  const [goals, setGoals] = useState({
+    calories: String(initialGoals.calories),
+    protein: String(initialGoals.protein),
+    carbs: String(initialGoals.carbs),
+    fat: String(initialGoals.fat),
+  })
   const [saved, setSaved] = useState(false)
   const [theme, setTheme] = useState<Theme>('system')
 
   useEffect(() => {
-    const storedGoal = localStorage.getItem(CALORIE_GOAL_KEY)
-    if (storedGoal) setGoal(storedGoal)
-
     const storedTheme = localStorage.getItem('theme') as Theme | null
     if (storedTheme) setTheme(storedTheme)
   }, [])
@@ -28,14 +39,24 @@ export default function ProfileView({ email }: { email: string }) {
     applyTheme(t)
   }
 
-  function handleChange(value: string) {
-    setGoal(value)
-    const n = Number(value)
-    if (Number.isFinite(n) && n > 0) {
-      localStorage.setItem(CALORIE_GOAL_KEY, String(n))
-      setSaved(true)
-      setTimeout(() => setSaved(false), 1500)
+  async function handleGoalChange(
+    field: keyof typeof goals,
+    raw: string,
+  ) {
+    setGoals((prev) => ({ ...prev, [field]: raw }))
+    const n = Math.round(Number(raw))
+    if (!Number.isFinite(n) || n <= 0) return
+
+    const fieldMap: Record<keyof typeof goals, keyof ProfileUpdate> = {
+      calories: 'daily_kcal_target',
+      protein: 'daily_protein_g',
+      carbs: 'daily_carbs_g',
+      fat: 'daily_fat_g',
     }
+
+    await updateProfileGoals({ [fieldMap[field]]: n })
+    setSaved(true)
+    setTimeout(() => setSaved(false), 1500)
   }
 
   return (
@@ -60,13 +81,75 @@ export default function ProfileView({ email }: { email: string }) {
               inputMode="numeric"
               min={100}
               step={100}
-              value={goal}
-              onChange={(e) => handleChange(e.target.value)}
-              className="flex-1 rounded-xl bg-zinc-50 px-3 py-2.5 text-sm text-zinc-800 outline-none ring-1 ring-transparent focus:ring-zinc-300"
+              value={goals.calories}
+              onChange={(e) => handleGoalChange('calories', e.target.value)}
+              className={inputClass}
             />
             <span className="text-sm text-zinc-400">kcal</span>
           </div>
-          {saved && <p className="mt-2 text-xs text-green-600">Saved</p>}
+        </div>
+      </section>
+
+      {/* Macro Goals */}
+      <section className="mb-6">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-400">
+          Daily Macro Goals
+        </h2>
+        <div className="rounded-2xl bg-white px-4 py-4 shadow-sm">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-medium text-zinc-400" htmlFor="goal-protein">
+                Protein
+              </label>
+              <div className="flex items-center gap-1">
+                <input
+                  id="goal-protein"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={goals.protein}
+                  onChange={(e) => handleGoalChange('protein', e.target.value)}
+                  className={inputClass}
+                />
+                <span className="shrink-0 text-xs text-zinc-400">g</span>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-medium text-zinc-400" htmlFor="goal-carbs">
+                Carbs
+              </label>
+              <div className="flex items-center gap-1">
+                <input
+                  id="goal-carbs"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={goals.carbs}
+                  onChange={(e) => handleGoalChange('carbs', e.target.value)}
+                  className={inputClass}
+                />
+                <span className="shrink-0 text-xs text-zinc-400">g</span>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-medium text-zinc-400" htmlFor="goal-fat">
+                Fat
+              </label>
+              <div className="flex items-center gap-1">
+                <input
+                  id="goal-fat"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={goals.fat}
+                  onChange={(e) => handleGoalChange('fat', e.target.value)}
+                  className={inputClass}
+                />
+                <span className="shrink-0 text-xs text-zinc-400">g</span>
+              </div>
+            </div>
+          </div>
+          {saved && <p className="mt-3 text-xs text-green-600">Saved</p>}
         </div>
       </section>
 
