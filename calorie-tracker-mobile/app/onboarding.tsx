@@ -285,14 +285,17 @@ export default function OnboardingScreen() {
       return
     }
     setStep1Errors({})
+    const selectedGoalType = goalType
+    const selectedActivityLevel = activityLevel
+    if (!selectedGoalType || !selectedActivityLevel || !sex) return
 
     const goals = calculateGoals({
       age: Number(age),
-      sex: sex!,
+      sex,
       height_cm: Number(heightCm),
       weight_kg: Number(weightKg),
-      goal_type: goalType,
-      activity_level: activityLevel,
+      goal_type: selectedGoalType,
+      activity_level: selectedActivityLevel,
       goal_pace: goalPace,
     })
 
@@ -310,7 +313,12 @@ export default function OnboardingScreen() {
     const pro = Number(protein)
     const crb = Number(carbs)
     const ft = Number(fat)
-    if (!cal || !pro || !crb || !ft) {
+    if (
+      !Number.isFinite(cal) || cal <= 0 ||
+      !Number.isFinite(pro) || pro <= 0 ||
+      !Number.isFinite(crb) || crb <= 0 ||
+      !Number.isFinite(ft) || ft <= 0
+    ) {
       setSaveError('All targets must be positive numbers.')
       return
     }

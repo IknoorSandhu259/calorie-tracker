@@ -24,6 +24,7 @@ type Meal = {
   protein: number | null
   carbs: number | null
   fat: number | null
+  date: string
 }
 
 function todayISO(): string {
@@ -79,7 +80,7 @@ export default function HomeScreen() {
       fetchGoals(user.id),
       supabase
         .from('meals')
-        .select('id, name, calories, protein, carbs, fat')
+        .select('id, name, calories, protein, carbs, fat, date')
         .eq('user_id', user.id)
         .eq('date', todayISO())
         .order('created_at', { ascending: true }),
@@ -102,6 +103,7 @@ export default function HomeScreen() {
       protein: saved.protein,
       carbs: saved.carbs,
       fat: saved.fat,
+      date: todayISO(),
     }
     setMeals((prev) => [...prev, optimistic])
 
@@ -156,6 +158,22 @@ export default function HomeScreen() {
     }
   }
 
+  function handleEdit(meal: Meal) {
+    const params = new URLSearchParams({
+      from: '/(tabs)',
+      mealId: meal.id,
+      mealName: meal.name,
+      mealCalories: String(meal.calories),
+      mealDate: meal.date,
+    })
+
+    if (meal.protein !== null) params.set('mealProtein', String(meal.protein))
+    if (meal.carbs !== null) params.set('mealCarbs', String(meal.carbs))
+    if (meal.fat !== null) params.set('mealFat', String(meal.fat))
+
+    router.push(`/add-meal?${params.toString()}`)
+  }
+
   async function handleRefresh() {
     setRefreshing(true)
     await loadData()
@@ -190,14 +208,16 @@ export default function HomeScreen() {
         </View>
 
         {/* Quick Add — saved meal chips */}
-        {savedMeals.length > 0 && (
-          <View style={s.quickAddSection}>
-            <View style={s.quickAddHeader}>
-              <Text style={s.sectionLabel}>Quick Add</Text>
+        <View style={s.quickAddSection}>
+          <View style={s.quickAddHeader}>
+            <Text style={s.sectionLabel}>Quick Add</Text>
+            {savedMeals.length > 0 && (
               <TouchableOpacity onPress={() => setShowSavedSheet(true)}>
                 <Text style={s.quickAddManage}>Manage</Text>
               </TouchableOpacity>
-            </View>
+            )}
+          </View>
+          {savedMeals.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipsRow}>
               {savedMeals.map((sm) => (
                 <TouchableOpacity
@@ -210,15 +230,19 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </View>
-        )}
+          ) : (
+            <View style={s.quickAddEmpty}>
+              <Text style={s.quickAddEmptyText}>Use Save as template when logging to enable Quick Add.</Text>
+            </View>
+          )}
+        </View>
 
         {/* Divider */}
         <View style={s.divider} />
 
         {/* Meals */}
         <View style={s.mealsSection}>
-          <Text style={s.sectionLabel}>Today's Meals</Text>
+          <Text style={s.sectionLabel}>Today&apos;s Meals</Text>
 
           {deleteError && <Text style={s.errorText}>{deleteError}</Text>}
 
@@ -236,6 +260,13 @@ export default function HomeScreen() {
                 <Text style={s.mealName} numberOfLines={1}>{meal.name}</Text>
                 <View style={s.mealRight}>
                   <Text style={s.mealCal}>{meal.calories} kcal</Text>
+                  <TouchableOpacity
+                    onPress={() => handleEdit(meal)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityLabel={`Edit ${meal.name}`}
+                  >
+                    <Feather name="edit-2" size={15} color={c.iconMuted} />
+                  </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => handleDelete(meal.id)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -311,6 +342,15 @@ function makeStyles(c: AppColors) {
       justifyContent: 'space-between', marginBottom: 10,
     },
     quickAddManage: { fontSize: 12, color: c.textMuted, fontWeight: '500' },
+    quickAddEmpty: {
+      backgroundColor: c.cardBg,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    quickAddEmptyText: { fontSize: 12, color: c.textMuted, lineHeight: 17 },
     chipsRow: { gap: 8 },
     chip: {
       backgroundColor: c.cardBg, borderRadius: 12,

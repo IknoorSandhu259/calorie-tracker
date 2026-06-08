@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase'
 import WeightChart, { type WPoint } from '../../components/WeightChart'
 import CalorieChart, { type CPoint } from '../../components/CalorieChart'
 import { useTheme, type AppColors } from '../../constants/colors'
+import type { GoalType } from '../../lib/goals'
 
 // ─── Types & constants ───────────────────────────────────────────────────────
 export type Range = '7D' | '30D' | '90D' | '1Y' | 'All'
@@ -208,6 +209,7 @@ function buildCaloriePoints(
 type Insights = {
   avgCalories: number
   calorieGoal: number
+  goalType: GoalType
   daysLogged: number
   weightChange: number | null
   recommendation: string
@@ -217,6 +219,7 @@ function buildInsights(
   mealRows: { date: string; calories: number }[],
   weightRows: { date: string; weight: number }[],
   calorieGoal: number,
+  goalType: GoalType,
 ): Insights {
   // Aggregate by day for the last 7 days
   const dayMap = new Map<string, number>()
@@ -254,7 +257,7 @@ function buildInsights(
     }
   }
 
-  return { avgCalories, calorieGoal, daysLogged, weightChange, recommendation }
+  return { avgCalories, calorieGoal, goalType, daysLogged, weightChange, recommendation }
 }
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
@@ -301,7 +304,7 @@ export default function ProgressScreen() {
 
         const profileQ = supabase
           .from('profiles')
-          .select('daily_kcal_target')
+          .select('daily_kcal_target, goal_type')
           .eq('id', user.id)
           .single()
 
@@ -331,6 +334,7 @@ export default function ProgressScreen() {
           (iMeals ?? []) as { date: string; calories: number }[],
           (iWeights ?? []) as { date: string; weight: number }[],
           profile?.daily_kcal_target ?? 2000,
+          (profile?.goal_type as GoalType | null) ?? 'maintain',
         ))
         setLoading(false)
       }
@@ -378,7 +382,8 @@ export default function ProgressScreen() {
                   insights.calorieGoal > 0 && {
                     color: (() => {
                       const r = insights.avgCalories / insights.calorieGoal
-                      return r >= 0.85 && r <= 1.15 ? c.success : c.error
+                      const upper = insights.goalType === 'gain' ? 1.4 : 1.15
+                      return r >= 0.85 && r <= upper ? c.success : c.error
                     })(),
                   },
                 ]}>
@@ -394,7 +399,18 @@ export default function ProgressScreen() {
                   <View style={s.insightStat}>
                     <Text style={[
                       s.insightStatValue,
-                      { color: insights.weightChange < 0 ? c.success : insights.weightChange > 0.5 ? c.error : c.textPrimary },
+                      {
+                        color: (() => {
+                          if (insights.goalType === 'gain') {
+                            return insights.weightChange > 0.5
+                              ? c.success
+                              : insights.weightChange < -0.5 ? c.error : c.textPrimary
+                          }
+                          return insights.weightChange < 0
+                            ? c.success
+                            : insights.weightChange > 0.5 ? c.error : c.textPrimary
+                        })(),
+                      },
                     ]}>
                       {insights.weightChange > 0 ? '+' : ''}{insights.weightChange} kg
                     </Text>
@@ -407,6 +423,7 @@ export default function ProgressScreen() {
             {/* Recommendation */}
             <View style={s.insightRec}>
               <Text style={s.insightRecText}>{insights.recommendation}</Text>
+              <Text style={s.insightFootnote}>Always shows the last 7 days.</Text>
             </View>
           </View>
         </View>
@@ -489,5 +506,6 @@ function makeStyles(c: AppColors) {
       paddingHorizontal: 16, paddingVertical: 12,
     },
     insightRecText: { fontSize: 13, color: c.textMuted, lineHeight: 18 },
+    insightFootnote: { fontSize: 11, color: c.textLabel, marginTop: 8 },
   })
 }

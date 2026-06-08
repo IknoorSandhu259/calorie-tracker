@@ -15,26 +15,58 @@ function todayISO(d: Date = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+function dateFromISO(iso?: string): Date {
+  if (!iso) return new Date()
+  const [year, month, day] = iso.split('-').map(Number)
+  if (!year || !month || !day) return new Date()
+  return new Date(year, month - 1, day)
+}
+
 function parseOptional(val: string): number | null {
   if (val.trim() === '') return null
   const n = Number(val)
   return Number.isFinite(n) && n >= 0 ? n : null
 }
 
+function hasInvalidOptionalNumber(val: string): boolean {
+  if (val.trim() === '') return false
+  const n = Number(val)
+  return !Number.isFinite(n) || n < 0
+}
+
 export default function AddMealScreen() {
-  const { from } = useLocalSearchParams<{ from?: string }>()
+  const {
+    from,
+    mealId,
+    mealName,
+    mealCalories,
+    mealDate,
+    mealProtein,
+    mealCarbs,
+    mealFat,
+  } = useLocalSearchParams<{
+    from?: string
+    mealId?: string
+    mealName?: string
+    mealCalories?: string
+    mealDate?: string
+    mealProtein?: string
+    mealCarbs?: string
+    mealFat?: string
+  }>()
   const returnTo = from ?? '/(tabs)/history'
+  const isEditing = Boolean(mealId)
 
   const c = useTheme()
   const s = useMemo(() => makeStyles(c), [c])
 
-  const [name, setName] = useState('')
-  const [calories, setCalories] = useState('')
-  const [date, setDate] = useState(new Date())
+  const [name, setName] = useState(mealName ?? '')
+  const [calories, setCalories] = useState(mealCalories ?? '')
+  const [date, setDate] = useState(() => dateFromISO(mealDate))
   const [showDatePicker, setShowDatePicker] = useState(false)
-  const [protein, setProtein] = useState('')
-  const [carbs, setCarbs] = useState('')
-  const [fat, setFat] = useState('')
+  const [protein, setProtein] = useState(mealProtein ?? '')
+  const [carbs, setCarbs] = useState(mealCarbs ?? '')
+  const [fat, setFat] = useState(mealFat ?? '')
   const [saveAsTemplate, setSaveAsTemplate] = useState(false)
   const [showSavedMeals, setShowSavedMeals] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -45,30 +77,43 @@ export default function AddMealScreen() {
     const cal = Number(calories)
     if (!name.trim()) { setError('Name is required.'); return }
     if (!Number.isFinite(cal) || cal <= 0) { setError('Enter a valid calorie amount.'); return }
+    if (
+      hasInvalidOptionalNumber(protein) ||
+      hasInvalidOptionalNumber(carbs) ||
+      hasInvalidOptionalNumber(fat)
+    ) {
+      setError('Macros must be valid non-negative numbers.')
+      return
+    }
 
     setSubmitting(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setError('Not authenticated.'); setSubmitting(false); return }
 
-    const meal: Record<string, unknown> = {
-      user_id: user.id,
-      name: name.trim(),
-      calories: cal,
-      date: todayISO(date),
-    }
     const p = parseOptional(protein)
     const cv = parseOptional(carbs)
     const f = parseOptional(fat)
-    if (p !== null) meal.protein = p
-    if (cv !== null) meal.carbs = cv
-    if (f !== null) meal.fat = f
+    const meal = {
+      name: name.trim(),
+      calories: cal,
+      date: todayISO(date),
+      protein: p,
+      carbs: cv,
+      fat: f,
+    }
 
-    const { error: dbError } = await supabase.from('meals').insert(meal)
+    const { error: dbError } = isEditing
+      ? await supabase
+        .from('meals')
+        .update(meal)
+        .eq('id', mealId)
+        .eq('user_id', user.id)
+      : await supabase.from('meals').insert({ ...meal, user_id: user.id })
     setSubmitting(false)
 
     if (dbError) { setError(dbError.message); return }
 
-    if (saveAsTemplate) {
+    if (!isEditing && saveAsTemplate) {
       await saveMealTemplate({
         name: name.trim(),
         calories: cal,
@@ -92,11 +137,15 @@ export default function AddMealScreen() {
           <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Feather name="arrow-left" size={22} color={c.textLabel} />
           </TouchableOpacity>
-          <Text style={s.title}>Add Meal</Text>
-          <TouchableOpacity style={s.templateBtn} onPress={() => setShowSavedMeals(true)}>
-            <Feather name="bookmark" size={15} color={c.textMuted} />
-            <Text style={s.templateBtnText}>Saved</Text>
-          </TouchableOpacity>
+          <Text style={s.title}>{isEditing ? 'Edit Meal' : 'Add Meal'}</Text>
+          {isEditing ? (
+            <View style={s.headerSpacer} />
+          ) : (
+            <TouchableOpacity style={s.templateBtn} onPress={() => setShowSavedMeals(true)}>
+              <Feather name="bookmark" size={15} color={c.textMuted} />
+              <Text style={s.templateBtnText}>Saved</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <SavedMealsSheet
@@ -200,16 +249,18 @@ export default function AddMealScreen() {
         </View>
 
         {/* Save as template toggle */}
-        <TouchableOpacity style={s.saveTemplateRow} onPress={() => setSaveAsTemplate((v) => !v)}>
-          <Feather
-            name={saveAsTemplate ? 'check-square' : 'square'}
-            size={16}
-            color={saveAsTemplate ? c.textPrimary : c.textLabel}
-          />
-          <Text style={[s.saveTemplateText, { color: saveAsTemplate ? c.textPrimary : c.textLabel }]}>
-            Save as template
-          </Text>
-        </TouchableOpacity>
+        {!isEditing && (
+          <TouchableOpacity style={s.saveTemplateRow} onPress={() => setSaveAsTemplate((v) => !v)}>
+            <Feather
+              name={saveAsTemplate ? 'check-square' : 'square'}
+              size={16}
+              color={saveAsTemplate ? c.textPrimary : c.textLabel}
+            />
+            <Text style={[s.saveTemplateText, { color: saveAsTemplate ? c.textPrimary : c.textLabel }]}>
+              Save as template
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {error && <Text style={s.error}>{error}</Text>}
 
@@ -218,7 +269,7 @@ export default function AddMealScreen() {
           onPress={handleSubmit}
           disabled={submitting}
         >
-          <Text style={s.submitText}>{submitting ? 'Saving…' : 'Save Meal'}</Text>
+          <Text style={s.submitText}>{submitting ? 'Saving...' : isEditing ? 'Update Meal' : 'Save Meal'}</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -231,6 +282,7 @@ function makeStyles(c: AppColors) {
     scroll: { flex: 1 },
     content: { paddingHorizontal: 20, paddingBottom: 48, paddingTop: Platform.OS === 'ios' ? 56 : 24 },
     header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 28, justifyContent: 'space-between' },
+    headerSpacer: { width: 52 },
     templateBtn: { flexDirection: 'row', alignItems: 'center', gap: 5 },
     templateBtnText: { fontSize: 13, fontWeight: '500', color: c.textMuted },
     title: { fontSize: 24, fontWeight: '700', color: c.textPrimary },

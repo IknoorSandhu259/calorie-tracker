@@ -9,7 +9,15 @@ import { supabase } from '../../lib/supabase'
 import WeightLogModal from '../../components/WeightLogModal'
 import { useTheme, type AppColors } from '../../constants/colors'
 
-type Meal = { id: string; name: string; calories: number }
+type Meal = {
+  id: string
+  name: string
+  calories: number
+  protein: number | null
+  carbs: number | null
+  fat: number | null
+  date: string
+}
 type WeightEntry = { weight: number }
 
 const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
@@ -28,6 +36,11 @@ function isoToLocalDate(iso: string): Date {
   return new Date(y, m - 1, d)
 }
 
+function formatMacro(value: number | null): string {
+  if (value === null) return '--'
+  return Number.isInteger(value) ? String(value) : value.toFixed(1)
+}
+
 export default function HistoryScreen() {
   const c = useTheme()
   const s = useMemo(() => makeStyles(c), [c])
@@ -39,7 +52,6 @@ export default function HistoryScreen() {
   const [meals, setMeals] = useState<Meal[]>([])
   const [weightEntry, setWeightEntry] = useState<WeightEntry | null>(null)
   const [loading, setLoading] = useState(true)
-  const [fetchTick, setFetchTick] = useState(0)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [showWeightModal, setShowWeightModal] = useState(false)
@@ -54,7 +66,7 @@ export default function HistoryScreen() {
     const [mealsResult, weightResult] = await Promise.all([
       supabase
         .from('meals')
-        .select('id, name, calories')
+        .select('id, name, calories, protein, carbs, fat, date')
         .eq('user_id', user.id)
         .eq('date', date)
         .order('created_at', { ascending: true }),
@@ -80,7 +92,7 @@ export default function HistoryScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchDay(selected)
-    }, [selected, fetchTick])
+    }, [selected])
   )
 
   function handleSelectDate(date: string) {
@@ -104,9 +116,23 @@ export default function HistoryScreen() {
     if (error) {
       setMeals(snapshot)
       setDeleteError('Could not delete meal.')
-    } else {
-      setFetchTick(t => t + 1)
     }
+  }
+
+  function handleEdit(meal: Meal) {
+    const params = new URLSearchParams({
+      from: '/(tabs)/history',
+      mealId: meal.id,
+      mealName: meal.name,
+      mealCalories: String(meal.calories),
+      mealDate: meal.date,
+    })
+
+    if (meal.protein !== null) params.set('mealProtein', String(meal.protein))
+    if (meal.carbs !== null) params.set('mealCarbs', String(meal.carbs))
+    if (meal.fat !== null) params.set('mealFat', String(meal.fat))
+
+    router.push(`/add-meal?${params.toString()}`)
   }
 
   function prevMonth() {
@@ -219,7 +245,7 @@ export default function HistoryScreen() {
             <View style={s.placeholder}>
               <Text style={s.placeholderText}>{fetchError}</Text>
               <TouchableOpacity
-                onPress={() => setFetchTick(t => t + 1)}
+                onPress={() => fetchDay(selected)}
                 style={s.retryButton}
               >
                 <Text style={s.retryText}>Retry</Text>
@@ -248,16 +274,30 @@ export default function HistoryScreen() {
                   {deleteError && <Text style={s.errorText}>{deleteError}</Text>}
                   {meals.map(meal => (
                     <View key={meal.id} style={s.mealCard}>
-                      <Text style={s.mealName} numberOfLines={1}>{meal.name}</Text>
-                      <View style={s.mealRight}>
-                        <Text style={s.mealCal}>{meal.calories} kcal</Text>
-                        <TouchableOpacity
-                          onPress={() => handleDelete(meal.id)}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          accessibilityLabel={`Delete ${meal.name}`}
-                        >
-                          <Feather name="trash-2" size={15} color={c.iconMuted} />
-                        </TouchableOpacity>
+                      <View style={s.mealTopRow}>
+                        <Text style={s.mealName} numberOfLines={1}>{meal.name}</Text>
+                        <View style={s.mealRight}>
+                          <Text style={s.mealCal}>{meal.calories} kcal</Text>
+                          <TouchableOpacity
+                            onPress={() => handleEdit(meal)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            accessibilityLabel={`Edit ${meal.name}`}
+                          >
+                            <Feather name="edit-2" size={15} color={c.iconMuted} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => handleDelete(meal.id)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            accessibilityLabel={`Delete ${meal.name}`}
+                          >
+                            <Feather name="trash-2" size={15} color={c.iconMuted} />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                      <View style={s.macroRow}>
+                        <Text style={s.macroText}>P {formatMacro(meal.protein)}g</Text>
+                        <Text style={s.macroText}>C {formatMacro(meal.carbs)}g</Text>
+                        <Text style={s.macroText}>F {formatMacro(meal.fat)}g</Text>
                       </View>
                     </View>
                   ))}
@@ -374,13 +414,20 @@ function makeStyles(c: AppColors) {
     mealCard: {
       backgroundColor: c.cardBg, borderRadius: 16,
       paddingHorizontal: 16, paddingVertical: 14,
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
       shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4,
       shadowOffset: { width: 0, height: 1 }, elevation: 1,
     },
-    mealName: { fontSize: 14, fontWeight: '500', color: c.textSecondary, flex: 1, marginRight: 12 },
+    mealTopRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    mealName: { fontSize: 14, fontWeight: '500', color: c.textSecondary, flex: 1 },
     mealRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     mealCal: { fontSize: 14, color: c.textMuted, fontVariant: ['tabular-nums'] },
+    macroRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
+    macroText: { fontSize: 12, color: c.textLabel, fontVariant: ['tabular-nums'] },
     // Persistent action bar
     actionBar: {
       flexDirection: 'row',

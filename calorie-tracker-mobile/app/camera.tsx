@@ -1,8 +1,10 @@
 import { useRef, useState } from 'react'
 import {
-  View, Text, TouchableOpacity, Image,
+  View, Text, TextInput, TouchableOpacity, Image,
   StyleSheet, ActivityIndicator, Platform, SafeAreaView,
+  KeyboardAvoidingView, Keyboard, ScrollView, Alert, Modal,
 } from 'react-native'
+import DateTimePicker from '@react-native-community/datetimepicker'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
@@ -12,9 +14,14 @@ import { supabase } from '../lib/supabase'
 type Screen = 'camera' | 'preview'
 type AnalyzeState = 'idle' | 'loading' | 'done' | 'error'
 
-function todayISO(): string {
-  const d = new Date()
+function toISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function parseRequiredNumber(value: string): number | null {
+  if (value.trim() === '') return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
 }
 
 export default function CameraScreen() {
@@ -36,6 +43,13 @@ export default function CameraScreen() {
   const [analyzeState, setAnalyzeState] = useState<AnalyzeState>('idle')
   const [analysisResult, setAnalysisResult] = useState<FoodAnalysis | null>(null)
   const [analysisError, setAnalysisError] = useState<string | null>(null)
+  const [editedName, setEditedName] = useState('')
+  const [editedCalories, setEditedCalories] = useState('')
+  const [editedProtein, setEditedProtein] = useState('')
+  const [editedCarbs, setEditedCarbs] = useState('')
+  const [editedFat, setEditedFat] = useState('')
+  const [mealDate, setMealDate] = useState(() => new Date())
+  const [showDatePicker, setShowDatePicker] = useState(false)
 
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -74,6 +88,13 @@ export default function CameraScreen() {
     setAnalyzeState('idle')
     setAnalysisResult(null)
     setAnalysisError(null)
+    setEditedName('')
+    setEditedCalories('')
+    setEditedProtein('')
+    setEditedCarbs('')
+    setEditedFat('')
+    setMealDate(new Date())
+    setShowDatePicker(false)
     setSaving(false)
     setSaveError(null)
     setCaptureError(null)
@@ -89,8 +110,40 @@ export default function CameraScreen() {
       setAnalyzeState('error')
     } else {
       setAnalysisResult(res.data)
+      setEditedName(res.data.name)
+      setEditedCalories(String(res.data.calories))
+      setEditedProtein(String(res.data.protein))
+      setEditedCarbs(String(res.data.carbs))
+      setEditedFat(String(res.data.fat))
       setAnalyzeState('done')
     }
+  }
+
+  function hasUserEdits(): boolean {
+    if (!analysisResult) return false
+    return (
+      editedName !== analysisResult.name ||
+      editedCalories !== String(analysisResult.calories) ||
+      editedProtein !== String(analysisResult.protein) ||
+      editedCarbs !== String(analysisResult.carbs) ||
+      editedFat !== String(analysisResult.fat)
+    )
+  }
+
+  function handleAnalyzePress() {
+    Keyboard.dismiss()
+    if (analysisResult && hasUserEdits()) {
+      Alert.alert(
+        'Replace your edits?',
+        'Re-analyzing will replace your edits.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Re-analyze', style: 'destructive', onPress: handleAnalyze },
+        ],
+      )
+      return
+    }
+    handleAnalyze()
   }
 
   async function handleSave() {
@@ -98,17 +151,29 @@ export default function CameraScreen() {
     setSaving(true)
     setSaveError(null)
 
+    const name = editedName.trim()
+    const calories = parseRequiredNumber(editedCalories)
+    const protein = parseRequiredNumber(editedProtein)
+    const carbs = parseRequiredNumber(editedCarbs)
+    const fat = parseRequiredNumber(editedFat)
+
+    if (!name || calories === null || protein === null || carbs === null || fat === null) {
+      setSaveError('Please enter a meal name and valid nutrition values.')
+      setSaving(false)
+      return
+    }
+
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaveError('Not authenticated.'); setSaving(false); return }
 
     const { error } = await supabase.from('meals').insert({
       user_id: user.id,
-      name: analysisResult.name,
-      calories: analysisResult.calories,
-      protein: analysisResult.protein,
-      carbs: analysisResult.carbs,
-      fat: analysisResult.fat,
-      date: todayISO(),
+      name,
+      calories: Math.round(calories),
+      protein,
+      carbs,
+      fat,
+      date: toISO(mealDate),
     })
 
     if (error) {
@@ -143,7 +208,10 @@ export default function CameraScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       {/* Top bar */}
       <SafeAreaView style={styles.topBar}>
         <TouchableOpacity
@@ -209,27 +277,101 @@ export default function CameraScreen() {
             </View>
           </View>
         ) : (
-          <View style={styles.previewControls}>
+          <ScrollView
+            contentContainerStyle={styles.previewControls}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            showsVerticalScrollIndicator={false}
+          >
             {/* Analysis result card */}
             {analyzeState === 'done' && analysisResult && (
               <View style={styles.resultCard}>
-                <Text style={styles.resultName}>{analysisResult.name}</Text>
+                <TextInput
+                  style={styles.resultNameInput}
+                  value={editedName}
+                  onChangeText={setEditedName}
+                  placeholder="Meal name"
+                  placeholderTextColor="rgba(255,255,255,0.45)"
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
+                  selectTextOnFocus
+                />
+                <Text style={styles.aiEstimateLabel}>AI estimate - tap to edit</Text>
                 <View style={styles.macroGrid}>
                   {([
-                    { label: 'Calories', value: `${analysisResult.calories}`, unit: 'kcal' },
-                    { label: 'Protein',  value: `${analysisResult.protein}`,  unit: 'g' },
-                    { label: 'Carbs',    value: `${analysisResult.carbs}`,    unit: 'g' },
-                    { label: 'Fat',      value: `${analysisResult.fat}`,      unit: 'g' },
-                  ]).map(({ label, value, unit }) => (
+                    { label: 'Calories', value: editedCalories, setValue: setEditedCalories, unit: 'kcal', keyboardType: 'number-pad' as const },
+                    { label: 'Protein', value: editedProtein, setValue: setEditedProtein, unit: 'g', keyboardType: 'decimal-pad' as const },
+                    { label: 'Carbs', value: editedCarbs, setValue: setEditedCarbs, unit: 'g', keyboardType: 'decimal-pad' as const },
+                    { label: 'Fat', value: editedFat, setValue: setEditedFat, unit: 'g', keyboardType: 'decimal-pad' as const },
+                  ]).map(({ label, value, setValue, unit, keyboardType }) => (
                     <View key={label} style={styles.macroCell}>
-                      <Text style={styles.macroCellValue}>
-                        {value}<Text style={styles.macroCellUnit}>{unit}</Text>
-                      </Text>
+                      <View style={styles.macroInputRow}>
+                        <TextInput
+                          style={styles.macroCellInput}
+                          value={value}
+                          onChangeText={setValue}
+                          keyboardType={keyboardType}
+                          placeholder="0"
+                          placeholderTextColor="rgba(255,255,255,0.45)"
+                          returnKeyType="done"
+                          onSubmitEditing={Keyboard.dismiss}
+                          selectTextOnFocus
+                        />
+                        <Text style={styles.macroCellUnit}>{unit}</Text>
+                      </View>
                       <Text style={styles.macroCellLabel}>{label}</Text>
                     </View>
                   ))}
                 </View>
+                <View style={styles.dateField}>
+                  <Text style={styles.dateLabel}>Date</Text>
+                  <TouchableOpacity
+                    style={styles.dateInput}
+                    onPress={() => {
+                      Keyboard.dismiss()
+                      setShowDatePicker(true)
+                    }}
+                    accessibilityLabel="Edit meal date"
+                  >
+                    <Text style={styles.dateInputText}>{toISO(mealDate)}</Text>
+                    <Feather name="calendar" size={14} color="rgba(255,255,255,0.6)" />
+                  </TouchableOpacity>
+                </View>
               </View>
+            )}
+
+            {showDatePicker && Platform.OS === 'ios' && (
+              <Modal transparent animationType="slide">
+                <View style={styles.pickerModal}>
+                  <View style={styles.pickerCard}>
+                    <DateTimePicker
+                      value={mealDate}
+                      mode="date"
+                      display="inline"
+                      themeVariant="dark"
+                      onChange={(_, d) => { if (d) setMealDate(d) }}
+                    />
+                    <TouchableOpacity
+                      style={styles.pickerDone}
+                      onPress={() => setShowDatePicker(false)}
+                    >
+                      <Text style={styles.pickerDoneText}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </Modal>
+            )}
+
+            {showDatePicker && Platform.OS === 'android' && (
+              <DateTimePicker
+                value={mealDate}
+                mode="date"
+                display="default"
+                onChange={(_, d) => {
+                  setShowDatePicker(false)
+                  if (d) setMealDate(d)
+                }}
+              />
             )}
 
             {/* Error message */}
@@ -243,7 +385,10 @@ export default function CameraScreen() {
             {analyzeState === 'done' && (
               <TouchableOpacity
                 style={[styles.primaryButton, saving && styles.buttonDisabled]}
-                onPress={handleSave}
+                onPress={() => {
+                  Keyboard.dismiss()
+                  handleSave()
+                }}
                 disabled={saving}
               >
                 {saving
@@ -254,12 +399,20 @@ export default function CameraScreen() {
 
             {/* Retake / Analyze row */}
             <View style={styles.actionRow}>
-              <TouchableOpacity style={styles.secondaryButton} onPress={handleRetake}>
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                onPress={() => {
+                  Keyboard.dismiss()
+                  handleRetake()
+                }}
+              >
                 <Text style={styles.secondaryButtonText}>Retake</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.primaryButton, styles.flex1, analyzeState === 'loading' && styles.buttonDisabled]}
-                onPress={handleAnalyze}
+                onPress={() => {
+                  handleAnalyzePress()
+                }}
                 disabled={analyzeState === 'loading'}
               >
                 {analyzeState === 'loading'
@@ -269,10 +422,10 @@ export default function CameraScreen() {
                     </Text>}
               </TouchableOpacity>
             </View>
-          </View>
+          </ScrollView>
         )}
       </SafeAreaView>
-    </View>
+    </KeyboardAvoidingView>
   )
 }
 
@@ -316,20 +469,87 @@ const styles = StyleSheet.create({
   captureInner: {
     width: 56, height: 56, borderRadius: 28, backgroundColor: '#fff',
   },
-  previewControls: { gap: 10 },
+  previewControls: { gap: 10, paddingBottom: 4 },
   resultCard: {
     backgroundColor: 'rgba(255,255,255,0.12)',
     borderRadius: 16, padding: 14,
   },
-  resultName: { fontSize: 14, fontWeight: '600', color: '#fff', marginBottom: 8 },
+  resultNameInput: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  aiEstimateLabel: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.55)',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
   macroGrid: { flexDirection: 'row', gap: 6 },
   macroCell: {
     flex: 1, backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 10, paddingVertical: 8, alignItems: 'center',
   },
-  macroCellValue: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  macroCellUnit: { fontSize: 10, fontWeight: '400' },
+  macroInputRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 3,
+    marginBottom: 2,
+  },
+  macroCellInput: {
+    minWidth: 24,
+    maxWidth: 50,
+    padding: 0,
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  macroCellUnit: { fontSize: 10, fontWeight: '500', color: 'rgba(255,255,255,0.75)' },
   macroCellLabel: { fontSize: 9, color: 'rgba(255,255,255,0.6)', marginTop: 2 },
+  dateField: { marginTop: 12 },
+  dateLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.6)',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  dateInput: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dateInputText: { color: '#fff', fontSize: 14, fontWeight: '500' },
+  pickerModal: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  pickerCard: {
+    backgroundColor: '#18181b',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+  },
+  pickerDone: { alignSelf: 'flex-end', paddingVertical: 10, paddingHorizontal: 20 },
+  pickerDoneText: { fontSize: 16, fontWeight: '600', color: '#fff' },
   errorCard: {
     backgroundColor: 'rgba(239,68,68,0.2)', borderRadius: 12, padding: 12,
   },

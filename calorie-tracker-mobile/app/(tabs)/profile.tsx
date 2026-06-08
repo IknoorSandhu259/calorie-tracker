@@ -75,7 +75,7 @@ export default function ProfileScreen() {
     }, []),
   )
 
-  const GOAL_FIELDS: Array<{ key: string; dbField: string; label: string; unit: string }> = [
+  const GOAL_FIELDS: { key: string; dbField: string; label: string; unit: string }[] = [
     { key: 'calories', dbField: 'daily_kcal_target', label: 'Calories', unit: 'kcal' },
     { key: 'protein', dbField: 'daily_protein_g', label: 'Protein', unit: 'g' },
     { key: 'carbs', dbField: 'daily_carbs_g', label: 'Carbs', unit: 'g' },

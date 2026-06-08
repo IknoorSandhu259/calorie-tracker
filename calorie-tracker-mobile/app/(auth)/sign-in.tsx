@@ -83,7 +83,7 @@ export default function SignInScreen() {
           <Link href="/(auth)/sign-up" asChild>
             <TouchableOpacity style={s.linkRow}>
               <Text style={s.linkText}>
-                Don't have an account?{' '}
+                Don&apos;t have an account?{' '}
                 <Text style={s.linkBold}>Sign up</Text>
               </Text>
             </TouchableOpacity>

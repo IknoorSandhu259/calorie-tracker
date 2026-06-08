@@ -47,7 +47,7 @@ export default function SavedMealsSheet({ visible, onClose, onSelect }: Props) {
               <Feather name="bookmark" size={28} color={c.textLabel} />
               <Text style={s.emptyTitle}>No saved meals yet</Text>
               <Text style={s.emptySubtitle}>
-                When adding a meal, check "Save as template" to reuse it here.
+                When adding a meal, check &quot;Save as template&quot; to reuse it here.
               </Text>
             </View>
           ) : (
