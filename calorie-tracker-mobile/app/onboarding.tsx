@@ -201,8 +201,11 @@ export default function OnboardingScreen() {
   const [carbs, setCarbs] = useState('')
   const [fat, setFat] = useState('')
 
-  const [step0Error, setStep0Error] = useState<string | null>(null)
-  const [step1Error, setStep1Error] = useState<string | null>(null)
+  type Step0Errors = { sex?: string; age?: string; height?: string; weight?: string }
+  type Step1Errors = { goalType?: string; activityLevel?: string }
+
+  const [step0Errors, setStep0Errors] = useState<Step0Errors>({})
+  const [step1Errors, setStep1Errors] = useState<Step1Errors>({})
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
@@ -238,7 +241,7 @@ export default function OnboardingScreen() {
     if (step === 0) {
       router.back()
     } else if (step === 1) {
-      setStep1Error(null)
+      setStep1Errors({})
       setStep(0)
     } else {
       setSaveError(null)
@@ -248,33 +251,40 @@ export default function OnboardingScreen() {
 
   // ── Step 0 → Step 1 ──────────────────────────────────────────────────────
   function handleStep0Next() {
-    setStep0Error(null)
+    const errs: Step0Errors = {}
 
-    if (!sex) return setStep0Error('Please select your sex.')
+    if (!sex) errs.sex = 'Required'
 
-    if (age.trim() === '') return setStep0Error('Age is required.')
     const a = Number(age)
-    if (!Number.isFinite(a) || a < 10 || a > 120)
-      return setStep0Error('Age must be between 10 and 120.')
+    if (age.trim() === '') errs.age = 'Required'
+    else if (!Number.isFinite(a) || a < 10 || a > 120) errs.age = 'Must be 10–120'
 
-    if (heightCm.trim() === '') return setStep0Error('Height is required.')
     const h = Number(heightCm)
-    if (!Number.isFinite(h) || h < 50 || h > 280)
-      return setStep0Error('Height must be between 50 and 280 cm.')
+    if (heightCm.trim() === '') errs.height = 'Required'
+    else if (!Number.isFinite(h) || h < 50 || h > 280) errs.height = 'Must be 50–280 cm'
 
-    if (weightKg.trim() === '') return setStep0Error('Weight is required.')
     const w = Number(weightKg)
-    if (!Number.isFinite(w) || w < 20 || w > 500)
-      return setStep0Error('Weight must be between 20 and 500 kg.')
+    if (weightKg.trim() === '') errs.weight = 'Required'
+    else if (!Number.isFinite(w) || w < 20 || w > 500) errs.weight = 'Must be 20–500 kg'
 
+    if (Object.keys(errs).length > 0) {
+      setStep0Errors(errs)
+      return
+    }
+    setStep0Errors({})
     setStep(1)
   }
 
   // ── Step 1 → Step 2 (calculate goals) ────────────────────────────────────
   function handleStep1Next() {
-    setStep1Error(null)
-    if (!goalType) return setStep1Error('Please select a goal.')
-    if (!activityLevel) return setStep1Error('Please select your activity level.')
+    const errs: Step1Errors = {}
+    if (!goalType) errs.goalType = 'Please select a goal'
+    if (!activityLevel) errs.activityLevel = 'Please select your activity level'
+    if (Object.keys(errs).length > 0) {
+      setStep1Errors(errs)
+      return
+    }
+    setStep1Errors({})
 
     const goals = calculateGoals({
       age: Number(age),
@@ -380,45 +390,52 @@ export default function OnboardingScreen() {
               We use this to calculate your calorie needs.
             </Text>
 
-            <Text style={[s.fieldLabel, { color: c.textLabel }]}>Sex</Text>
-            <SegmentedPicker options={SEX_OPTIONS} value={sex} onSelect={setSex} s={s} c={c} />
+            <Text style={[s.fieldLabel, { color: step0Errors.sex ? c.error : c.textLabel }]}>
+              Sex{step0Errors.sex ? ' — ' + step0Errors.sex : ''}
+            </Text>
+            <SegmentedPicker
+              options={SEX_OPTIONS} value={sex} onSelect={(v) => { setSex(v); setStep0Errors(e => ({ ...e, sex: undefined })) }}
+              s={s} c={c}
+            />
 
-            <Text style={[s.fieldLabel, { color: c.textLabel, marginTop: 20 }]}>Age (years)</Text>
+            <Text style={[s.fieldLabel, { color: step0Errors.age ? c.error : c.textLabel, marginTop: 20 }]}>
+              Age (years){step0Errors.age ? ' — ' + step0Errors.age : ''}
+            </Text>
             <TextInput
-              style={[s.input, { color: c.textPrimary, borderColor: c.border, backgroundColor: c.inputBg }]}
+              style={[s.input, { color: c.textPrimary, borderColor: step0Errors.age ? c.error : c.border, backgroundColor: c.inputBg }]}
               value={age}
-              onChangeText={setAge}
+              onChangeText={(v) => { setAge(v); setStep0Errors(e => ({ ...e, age: undefined })) }}
               keyboardType="number-pad"
               placeholder="e.g. 28"
               placeholderTextColor={c.placeholder}
               selectTextOnFocus
             />
 
-            <Text style={[s.fieldLabel, { color: c.textLabel, marginTop: 16 }]}>Height (cm)</Text>
+            <Text style={[s.fieldLabel, { color: step0Errors.height ? c.error : c.textLabel, marginTop: 16 }]}>
+              Height (cm){step0Errors.height ? ' — ' + step0Errors.height : ''}
+            </Text>
             <TextInput
-              style={[s.input, { color: c.textPrimary, borderColor: c.border, backgroundColor: c.inputBg }]}
+              style={[s.input, { color: c.textPrimary, borderColor: step0Errors.height ? c.error : c.border, backgroundColor: c.inputBg }]}
               value={heightCm}
-              onChangeText={setHeightCm}
+              onChangeText={(v) => { setHeightCm(v); setStep0Errors(e => ({ ...e, height: undefined })) }}
               keyboardType="decimal-pad"
               placeholder="e.g. 175"
               placeholderTextColor={c.placeholder}
               selectTextOnFocus
             />
 
-            <Text style={[s.fieldLabel, { color: c.textLabel, marginTop: 16 }]}>Weight (kg)</Text>
+            <Text style={[s.fieldLabel, { color: step0Errors.weight ? c.error : c.textLabel, marginTop: 16 }]}>
+              Weight (kg){step0Errors.weight ? ' — ' + step0Errors.weight : ''}
+            </Text>
             <TextInput
-              style={[s.input, { color: c.textPrimary, borderColor: c.border, backgroundColor: c.inputBg }]}
+              style={[s.input, { color: c.textPrimary, borderColor: step0Errors.weight ? c.error : c.border, backgroundColor: c.inputBg }]}
               value={weightKg}
-              onChangeText={setWeightKg}
+              onChangeText={(v) => { setWeightKg(v); setStep0Errors(e => ({ ...e, weight: undefined })) }}
               keyboardType="decimal-pad"
               placeholder="e.g. 75"
               placeholderTextColor={c.placeholder}
               selectTextOnFocus
             />
-
-            {step0Error && (
-              <Text style={[s.errorText, { color: c.error }]}>{step0Error}</Text>
-            )}
 
             <TouchableOpacity
               style={[s.primaryBtn, { backgroundColor: c.primaryBg, marginTop: 28 }]}
@@ -437,21 +454,29 @@ export default function OnboardingScreen() {
               What are you working towards?
             </Text>
 
-            <Text style={[s.fieldLabel, { color: c.textLabel }]}>Goal</Text>
-            <SegmentedPicker options={GOAL_OPTIONS} value={goalType} onSelect={setGoalType} s={s} c={c} />
+            <Text style={[s.fieldLabel, { color: step1Errors.goalType ? c.error : c.textLabel }]}>
+              Goal{step1Errors.goalType ? ' — ' + step1Errors.goalType : ''}
+            </Text>
+            <SegmentedPicker
+              options={GOAL_OPTIONS} value={goalType}
+              onSelect={(v) => { setGoalType(v); setStep1Errors(e => ({ ...e, goalType: undefined })) }}
+              s={s} c={c}
+            />
 
-            <Text style={[s.fieldLabel, { color: c.textLabel, marginTop: 20 }]}>Activity level</Text>
-            <VerticalPicker options={ACTIVITY_OPTIONS} value={activityLevel} onSelect={setActivityLevel} s={s} c={c} />
+            <Text style={[s.fieldLabel, { color: step1Errors.activityLevel ? c.error : c.textLabel, marginTop: 20 }]}>
+              Activity level{step1Errors.activityLevel ? ' — ' + step1Errors.activityLevel : ''}
+            </Text>
+            <VerticalPicker
+              options={ACTIVITY_OPTIONS} value={activityLevel}
+              onSelect={(v) => { setActivityLevel(v); setStep1Errors(e => ({ ...e, activityLevel: undefined })) }}
+              s={s} c={c}
+            />
 
             {goalType !== 'maintain' && (
               <>
                 <Text style={[s.fieldLabel, { color: c.textLabel, marginTop: 20 }]}>Pace</Text>
                 <SegmentedPicker options={PACE_OPTIONS} value={goalPace} onSelect={setGoalPace} s={s} c={c} />
               </>
-            )}
-
-            {step1Error && (
-              <Text style={[s.errorText, { color: c.error }]}>{step1Error}</Text>
             )}
 
             <TouchableOpacity

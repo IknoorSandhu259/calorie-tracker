@@ -7,6 +7,8 @@ import { router, useLocalSearchParams } from 'expo-router'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { Feather } from '@expo/vector-icons'
 import { supabase } from '../lib/supabase'
+import { saveMealTemplate } from '../lib/savedMeals'
+import SavedMealsSheet from '../components/SavedMealsSheet'
 import { useTheme, type AppColors } from '../constants/colors'
 
 function todayISO(d: Date = new Date()): string {
@@ -33,6 +35,8 @@ export default function AddMealScreen() {
   const [protein, setProtein] = useState('')
   const [carbs, setCarbs] = useState('')
   const [fat, setFat] = useState('')
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false)
+  const [showSavedMeals, setShowSavedMeals] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -63,6 +67,17 @@ export default function AddMealScreen() {
     setSubmitting(false)
 
     if (dbError) { setError(dbError.message); return }
+
+    if (saveAsTemplate) {
+      await saveMealTemplate({
+        name: name.trim(),
+        calories: cal,
+        protein: p,
+        carbs: cv,
+        fat: f,
+      })
+    }
+
     router.replace(returnTo as never)
   }
 
@@ -78,7 +93,23 @@ export default function AddMealScreen() {
             <Feather name="arrow-left" size={22} color={c.textLabel} />
           </TouchableOpacity>
           <Text style={s.title}>Add Meal</Text>
+          <TouchableOpacity style={s.templateBtn} onPress={() => setShowSavedMeals(true)}>
+            <Feather name="bookmark" size={15} color={c.textMuted} />
+            <Text style={s.templateBtnText}>Saved</Text>
+          </TouchableOpacity>
         </View>
+
+        <SavedMealsSheet
+          visible={showSavedMeals}
+          onClose={() => setShowSavedMeals(false)}
+          onSelect={(meal) => {
+            setName(meal.name)
+            setCalories(String(meal.calories))
+            setProtein(meal.protein != null ? String(meal.protein) : '')
+            setCarbs(meal.carbs != null ? String(meal.carbs) : '')
+            setFat(meal.fat != null ? String(meal.fat) : '')
+          }}
+        />
 
         {/* Date */}
         <View style={s.field}>
@@ -168,6 +199,18 @@ export default function AddMealScreen() {
           </View>
         </View>
 
+        {/* Save as template toggle */}
+        <TouchableOpacity style={s.saveTemplateRow} onPress={() => setSaveAsTemplate((v) => !v)}>
+          <Feather
+            name={saveAsTemplate ? 'check-square' : 'square'}
+            size={16}
+            color={saveAsTemplate ? c.textPrimary : c.textLabel}
+          />
+          <Text style={[s.saveTemplateText, { color: saveAsTemplate ? c.textPrimary : c.textLabel }]}>
+            Save as template
+          </Text>
+        </TouchableOpacity>
+
         {error && <Text style={s.error}>{error}</Text>}
 
         <TouchableOpacity
@@ -187,7 +230,9 @@ function makeStyles(c: AppColors) {
     flex: { flex: 1, backgroundColor: c.pageBg },
     scroll: { flex: 1 },
     content: { paddingHorizontal: 20, paddingBottom: 48, paddingTop: Platform.OS === 'ios' ? 56 : 24 },
-    header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 28 },
+    header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 28, justifyContent: 'space-between' },
+    templateBtn: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    templateBtnText: { fontSize: 13, fontWeight: '500', color: c.textMuted },
     title: { fontSize: 24, fontWeight: '700', color: c.textPrimary },
     field: { marginBottom: 16 },
     fieldLabel: {
@@ -213,6 +258,11 @@ function makeStyles(c: AppColors) {
       paddingVertical: 16, alignItems: 'center', marginTop: 8,
     },
     submitDisabled: { opacity: 0.5 },
+    saveTemplateRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      marginBottom: 12, paddingVertical: 4,
+    },
+    saveTemplateText: { fontSize: 13 },
     submitText: { color: c.primaryText, fontSize: 14, fontWeight: '600' },
     pickerModal: {
       flex: 1, backgroundColor: 'rgba(0,0,0,0.4)',

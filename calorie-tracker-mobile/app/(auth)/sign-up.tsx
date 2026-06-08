@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, KeyboardAvoidingView, Platform, ScrollView,
+  StyleSheet, KeyboardAvoidingView, Platform,
 } from 'react-native'
 import { Link } from 'expo-router'
 import { supabase } from '../../lib/supabase'
@@ -48,10 +48,7 @@ export default function SignUpScreen() {
       style={s.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView
-        contentContainerStyle={s.container}
-        keyboardShouldPersistTaps="handled"
-      >
+      <View style={s.container}>
         <View style={s.card}>
           <Text style={s.appName}>Calorie Snap</Text>
           <Text style={s.subtitle}>Create an account to get started</Text>
@@ -105,7 +102,7 @@ export default function SignUpScreen() {
             </TouchableOpacity>
           </Link>
         </View>
-      </ScrollView>
+      </View>
     </KeyboardAvoidingView>
   )
 }
@@ -114,7 +111,7 @@ function makeStyles(c: AppColors) {
   return StyleSheet.create({
     flex: { flex: 1, backgroundColor: c.authBg },
     container: {
-      flexGrow: 1,
+      flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
       padding: 32,

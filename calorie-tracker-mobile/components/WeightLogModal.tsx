@@ -15,14 +15,15 @@ function todayISO(d: Date = new Date()): string {
 interface Props {
   onClose: () => void
   onSaved: () => void
+  initialDate?: Date
 }
 
-export default function WeightLogModal({ onClose, onSaved }: Props) {
+export default function WeightLogModal({ onClose, onSaved, initialDate }: Props) {
   const c = useTheme()
   const s = useMemo(() => makeStyles(c), [c])
 
   const [weight, setWeight] = useState('')
-  const [date, setDate] = useState(new Date())
+  const [date, setDate] = useState(initialDate ?? new Date())
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)

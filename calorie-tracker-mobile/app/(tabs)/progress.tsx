@@ -203,6 +203,60 @@ function buildCaloriePoints(
   return result
 }
 
+// ─── Insights ────────────────────────────────────────────────────────────────
+
+type Insights = {
+  avgCalories: number
+  calorieGoal: number
+  daysLogged: number
+  weightChange: number | null
+  recommendation: string
+}
+
+function buildInsights(
+  mealRows: { date: string; calories: number }[],
+  weightRows: { date: string; weight: number }[],
+  calorieGoal: number,
+): Insights {
+  // Aggregate by day for the last 7 days
+  const dayMap = new Map<string, number>()
+  for (const r of mealRows) {
+    dayMap.set(r.date, (dayMap.get(r.date) ?? 0) + r.calories)
+  }
+
+  const daysLogged = dayMap.size
+  const totalCals = [...dayMap.values()].reduce((a, b) => a + b, 0)
+  const avgCalories = daysLogged > 0 ? Math.round(totalCals / daysLogged) : 0
+
+  // Weight change: last entry minus first entry
+  const sortedW = [...weightRows].sort((a, b) => a.date.localeCompare(b.date))
+  const weightChange =
+    sortedW.length >= 2
+      ? Math.round((sortedW[sortedW.length - 1].weight - sortedW[0].weight) * 10) / 10
+      : null
+
+  // Rule-based recommendation
+  let recommendation = ''
+  if (daysLogged < 3) {
+    recommendation = 'Log meals more consistently to unlock personalised insights.'
+  } else {
+    const ratio = calorieGoal > 0 ? avgCalories / calorieGoal : 1
+    if (ratio < 0.8) {
+      recommendation = "You're eating well below target. Make sure you're getting enough fuel."
+    } else if (ratio > 1.2) {
+      recommendation = "You've been over target most days. Try smaller portions or fewer snacks."
+    } else {
+      recommendation = "Great work — you're consistently hitting your calorie target!"
+    }
+    if (weightChange !== null) {
+      if (weightChange > 0.5) recommendation += ` Weight is trending up +${weightChange} kg this week.`
+      else if (weightChange < -0.5) recommendation += ` Weight is trending down ${weightChange} kg this week.`
+    }
+  }
+
+  return { avgCalories, calorieGoal, daysLogged, weightChange, recommendation }
+}
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function ProgressScreen() {
   const c = useTheme()
@@ -211,6 +265,7 @@ export default function ProgressScreen() {
   const [range, setRange]             = useState<Range>('30D')
   const [weightData, setWeightData]   = useState<WPoint[]>([])
   const [calorieData, setCalorieData] = useState<CPoint[]>([])
+  const [insights, setInsights]       = useState<Insights | null>(null)
   const [loading, setLoading]         = useState(true)
 
   useFocusEffect(
@@ -231,13 +286,38 @@ export default function ProgressScreen() {
           .select('date, calories')
           .eq('user_id', user.id)
 
+        // Always fetch last 7 days for insights (independently of chart range)
+        const insightMealQ = supabase
+          .from('meals')
+          .select('date, calories')
+          .eq('user_id', user.id)
+          .gte('date', isoDate(7))
+
+        const insightWeightQ = supabase
+          .from('weight_logs')
+          .select('date, weight')
+          .eq('user_id', user.id)
+          .gte('date', isoDate(7))
+
+        const profileQ = supabase
+          .from('profiles')
+          .select('daily_kcal_target')
+          .eq('id', user.id)
+          .single()
+
         if (range !== 'All') {
           const days = RANGE_DAYS[range]
           weightQ.gte('date', isoDate(days))
           mealQ.gte('date', isoDate(days))
         }
 
-        const [{ data: wRows }, { data: mRows }] = await Promise.all([weightQ, mealQ])
+        const [
+          { data: wRows },
+          { data: mRows },
+          { data: iMeals },
+          { data: iWeights },
+          { data: profile },
+        ] = await Promise.all([weightQ, mealQ, insightMealQ, insightWeightQ, profileQ])
 
         setWeightData(buildWeightPoints(
           (wRows ?? []) as { date: string; weight: number }[],
@@ -246,6 +326,11 @@ export default function ProgressScreen() {
         setCalorieData(buildCaloriePoints(
           (mRows ?? []) as { date: string; calories: number }[],
           range,
+        ))
+        setInsights(buildInsights(
+          (iMeals ?? []) as { date: string; calories: number }[],
+          (iWeights ?? []) as { date: string; weight: number }[],
+          profile?.daily_kcal_target ?? 2000,
         ))
         setLoading(false)
       }
@@ -269,6 +354,63 @@ export default function ProgressScreen() {
           </TouchableOpacity>
         ))}
       </View>
+
+      {/* Insights panel — always shows last 7 days */}
+      {insights && (
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>Last 7 Days</Text>
+          <View style={s.insightCard}>
+            {/* Stats row */}
+            <View style={s.insightStats}>
+              <View style={s.insightStat}>
+                <Text style={s.insightStatValue}>{insights.avgCalories.toLocaleString()}</Text>
+                <Text style={s.insightStatLabel}>Avg kcal/day</Text>
+              </View>
+              <View style={s.insightDivider} />
+              <View style={s.insightStat}>
+                <Text style={s.insightStatValue}>{insights.daysLogged}</Text>
+                <Text style={s.insightStatLabel}>Days logged</Text>
+              </View>
+              <View style={s.insightDivider} />
+              <View style={s.insightStat}>
+                <Text style={[
+                  s.insightStatValue,
+                  insights.calorieGoal > 0 && {
+                    color: (() => {
+                      const r = insights.avgCalories / insights.calorieGoal
+                      return r >= 0.85 && r <= 1.15 ? c.success : c.error
+                    })(),
+                  },
+                ]}>
+                  {insights.calorieGoal > 0
+                    ? `${Math.round((insights.avgCalories / insights.calorieGoal) * 100)}%`
+                    : '—'}
+                </Text>
+                <Text style={s.insightStatLabel}>Goal adherence</Text>
+              </View>
+              {insights.weightChange !== null && (
+                <>
+                  <View style={s.insightDivider} />
+                  <View style={s.insightStat}>
+                    <Text style={[
+                      s.insightStatValue,
+                      { color: insights.weightChange < 0 ? c.success : insights.weightChange > 0.5 ? c.error : c.textPrimary },
+                    ]}>
+                      {insights.weightChange > 0 ? '+' : ''}{insights.weightChange} kg
+                    </Text>
+                    <Text style={s.insightStatLabel}>Weight trend</Text>
+                  </View>
+                </>
+              )}
+            </View>
+
+            {/* Recommendation */}
+            <View style={s.insightRec}>
+              <Text style={s.insightRecText}>{insights.recommendation}</Text>
+            </View>
+          </View>
+        </View>
+      )}
 
       {loading ? (
         <View style={s.loadingRow}>
@@ -326,5 +468,26 @@ function makeStyles(c: AppColors) {
       shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4,
       shadowOffset: { width: 0, height: 1 }, elevation: 1,
     },
+    insightCard: {
+      backgroundColor: c.cardBg, borderRadius: 20,
+      shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4,
+      shadowOffset: { width: 0, height: 1 }, elevation: 1,
+      overflow: 'hidden',
+    },
+    insightStats: {
+      flexDirection: 'row', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 14,
+    },
+    insightStat: { flex: 1, alignItems: 'center', gap: 4 },
+    insightStatValue: { fontSize: 18, fontWeight: '700', color: c.textPrimary },
+    insightStatLabel: {
+      fontSize: 9, fontWeight: '600', color: c.textLabel,
+      letterSpacing: 0.8, textTransform: 'uppercase', textAlign: 'center',
+    },
+    insightDivider: { width: 1, backgroundColor: c.divider, alignSelf: 'stretch', marginHorizontal: 4 },
+    insightRec: {
+      borderTopWidth: 1, borderTopColor: c.divider,
+      paddingHorizontal: 16, paddingVertical: 12,
+    },
+    insightRecText: { fontSize: 13, color: c.textMuted, lineHeight: 18 },
   })
 }
