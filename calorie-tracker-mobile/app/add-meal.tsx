@@ -7,7 +7,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { Feather } from '@expo/vector-icons'
 import { supabase } from '../lib/supabase'
-import { saveMealTemplate } from '../lib/savedMeals'
+import { incrementSavedMealUseCount, saveMealTemplate } from '../lib/savedMeals'
 import SavedMealsSheet from '../components/SavedMealsSheet'
 import { useTheme, type AppColors } from '../constants/colors'
 
@@ -67,6 +67,7 @@ export default function AddMealScreen() {
   const [protein, setProtein] = useState(mealProtein ?? '')
   const [carbs, setCarbs] = useState(mealCarbs ?? '')
   const [fat, setFat] = useState(mealFat ?? '')
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
   const [saveAsTemplate, setSaveAsTemplate] = useState(false)
   const [showSavedMeals, setShowSavedMeals] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -113,7 +114,7 @@ export default function AddMealScreen() {
 
     if (dbError) { setError(dbError.message); return }
 
-    if (!isEditing && saveAsTemplate) {
+    if (saveAsTemplate) {
       await saveMealTemplate({
         name: name.trim(),
         calories: cal,
@@ -121,6 +122,9 @@ export default function AddMealScreen() {
         carbs: cv,
         fat: f,
       })
+    }
+    if (!isEditing && selectedTemplateId) {
+      await incrementSavedMealUseCount(selectedTemplateId)
     }
 
     router.replace(returnTo as never)
@@ -152,6 +156,7 @@ export default function AddMealScreen() {
           visible={showSavedMeals}
           onClose={() => setShowSavedMeals(false)}
           onSelect={(meal) => {
+            setSelectedTemplateId(meal.id)
             setName(meal.name)
             setCalories(String(meal.calories))
             setProtein(meal.protein != null ? String(meal.protein) : '')
@@ -249,18 +254,16 @@ export default function AddMealScreen() {
         </View>
 
         {/* Save as template toggle */}
-        {!isEditing && (
-          <TouchableOpacity style={s.saveTemplateRow} onPress={() => setSaveAsTemplate((v) => !v)}>
-            <Feather
-              name={saveAsTemplate ? 'check-square' : 'square'}
-              size={16}
-              color={saveAsTemplate ? c.textPrimary : c.textLabel}
-            />
-            <Text style={[s.saveTemplateText, { color: saveAsTemplate ? c.textPrimary : c.textLabel }]}>
-              Save as template
-            </Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity style={s.saveTemplateRow} onPress={() => setSaveAsTemplate((v) => !v)}>
+          <Feather
+            name={saveAsTemplate ? 'check-square' : 'square'}
+            size={16}
+            color={saveAsTemplate ? c.textPrimary : c.textLabel}
+          />
+          <Text style={[s.saveTemplateText, { color: saveAsTemplate ? c.textPrimary : c.textLabel }]}>
+            Save as template
+          </Text>
+        </TouchableOpacity>
 
         {error && <Text style={s.error}>{error}</Text>}
 

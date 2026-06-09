@@ -10,7 +10,7 @@ import CalorieRing from '../../components/CalorieRing'
 import MacroRing from '../../components/MacroRing'
 import WeightLogModal from '../../components/WeightLogModal'
 import SavedMealsSheet from '../../components/SavedMealsSheet'
-import { getSavedMeals, type SavedMeal } from '../../lib/savedMeals'
+import { getSavedMeals, incrementSavedMealUseCount, type SavedMeal } from '../../lib/savedMeals'
 import { DEFAULT_GOALS, type GoalSet } from '../../lib/goals'
 import { useTheme, type AppColors } from '../../constants/colors'
 
@@ -125,9 +125,11 @@ export default function HomeScreen() {
       setMeals((prev) => prev.filter((m) => m.id !== optimistic.id))
       setDeleteError('Could not add meal.')
     } else if (data) {
+      await incrementSavedMealUseCount(saved.id)
       setMeals((prev) =>
         prev.map((m) => (m.id === optimistic.id ? { ...m, id: data.id } : m))
       )
+      setSavedMeals(await getSavedMeals())
     }
   }
 
